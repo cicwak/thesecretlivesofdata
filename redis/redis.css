@@ -37,7 +37,6 @@ button:focus-visible,a:focus-visible,select:focus-visible,[tabindex]:focus-visib
 #play { display:flex; align-items:center; justify-content:center; width:22px; }
 .utility-back { display:flex; align-items:center; justify-content:center; width:22px; }
 #speed { border:0; color:#777; background:transparent; border-radius:2px; font-size:13px; padding:5px 3px; cursor:pointer; }
-footer { font-size:11px; color:#777; text-align:center; padding:0 15px 16px; line-height:1.5; }
 .motion-notice { color:#777; font-size:12px; margin:10px 0; }
 .mobile-zoom { display:none; }
 .large-diagram { overflow-x:auto; padding:20px 0; }
@@ -102,7 +101,6 @@ pre { font-size:14px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywh
   .utilities { gap:9px; margin:12px 0; font-size:12px; }
   .text-button,#speed { font-size:12px; }
   .mobile-zoom { display:block; flex-basis:100%; }
-  footer { font-size:10px; }
   dialog { padding:20px; max-height:90svh; }
   .dialog-head h2 { font-size:20px; }
   .lab-controls { align-items:stretch; }

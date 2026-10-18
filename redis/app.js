@@ -134,7 +134,6 @@ function render({animate=false}={}) {
   $('zoom').textContent=t('zoom'); $('diagramTitle').textContent=l(current().steps[stepIndex].title);
   $('panHint').textContent=t('pan'); $('largeDiagram').innerHTML=storyScene(current().id,stepIndex,lang).replaceAll('scene-arrow-','zoom-arrow-');
   settleDiagram($('largeDiagram'));
-  $('version').textContent=t('version'); $('modelNotice').textContent=t('model');
   $('motionNotice').hidden=!reducedMotion.matches; $('motionNotice').textContent=t('reduced');
   document.querySelectorAll('.close-dialog').forEach(b=>{b.innerHTML=icon('close',14);b.setAttribute('aria-label',t('close'));});
   renderDiagram(); renderMenu(); renderDetails(); renderLab(); renderPlaybackState();
