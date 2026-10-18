@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explore Redis internals through 21 interactive chapters in English and Russian. Follow commands, memory, atomicity, persistence and replication.">
+  <title>Redis Internals · The Secret Lives of Data</title>
+  <link rel="stylesheet" href="redis.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#explanation" id="skip">Skip to the explanation</a>
+  <header class="navbar">
+    <a class="brand" href="../">The Secret Lives of Data</a>
+    <div class="nav-tools">
+      <div class="languages" role="group" aria-label="Language">
+        <button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button>
+      </div>
+      <button type="button" id="menuButton" class="menu-button" aria-label="Contents" aria-haspopup="dialog">
+        <svg width="20" height="17" viewBox="0 0 20 17" aria-hidden="true"><path d="M1 2h18M1 8h18M1 14h18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+  </header>
+  <main id="player">
+    <h1 id="chapterMeta"></h1>
+    <div id="scene" class="scene-wrap" aria-describedby="explanation"></div>
+    <section class="narrative" aria-labelledby="stepTitle">
+      <h2 id="stepTitle" class="sr-only"></h2>
+      <p id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></p>
+      <div class="player-controls">
+        <button id="replay" class="button icon-button" type="button" disabled></button>
+        <button id="next" class="button continue" type="button" disabled></button>
+      </div>
+      <div class="utilities">
+        <span id="stepCounter"></span><span class="separator" aria-hidden="true">·</span>
+        <button id="previous" class="text-button utility-back" type="button" disabled></button>
+        <button id="play" type="button" class="text-button"></button>
+        <select id="speed" aria-label="Animation speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+        <span class="separator" aria-hidden="true">·</span><button id="under" class="text-button" type="button" aria-haspopup="dialog"></button>
+        <span class="separator" aria-hidden="true">·</span><button id="try" class="text-button" type="button" aria-haspopup="dialog"></button>
+        <button id="zoom" class="text-button mobile-zoom" type="button" aria-haspopup="dialog"></button>
+      </div>
+      <p id="motionNotice" class="motion-notice" hidden></p>
+    </section>
+  </main>
+  <dialog id="contents" class="contents-dialog" aria-labelledby="contentsTitle">
+    <div class="dialog-head"><h2 id="contentsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="contents" type="button"></button></div></div>
+    <p id="chapterCount" class="muted"></p><nav id="chapterLinks"></nav>
+  </dialog>
+  <dialog id="details" aria-labelledby="detailsTitle">
+    <div class="dialog-head"><h2 id="detailsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="details" type="button"></button></div></div>
+    <div id="detailsBody"></div>
+  </dialog>
+  <dialog id="experiment" class="experiment-dialog" aria-labelledby="experimentTitle">
+    <div class="dialog-head"><h2 id="experimentTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="experiment" type="button"></button></div></div>
+    <p id="labNote"></p><div id="labControls" class="lab-controls"></div><div id="labPanels" class="lab-panels" aria-live="polite"></div>
+    <h3 id="eventsTitle"></h3><ol id="labEvents" aria-live="polite" aria-relevant="additions text"></ol>
+    <div class="lab-footer"><button type="button" id="reset" class="button"></button><p id="labDisclaimer" class="muted"></p></div>
+  </dialog>
+  <dialog id="diagramDialog" class="diagram-dialog" aria-labelledby="diagramTitle">
+    <div class="dialog-head"><h2 id="diagramTitle"></h2><button class="button close-dialog" data-close="diagramDialog" type="button"></button></div>
+    <p id="panHint" class="muted"></p><div id="largeDiagram" class="large-diagram" tabindex="0"></div>
+  </dialog>
+  <noscript><p class="noscript">Для интерактивного рассказа включите JavaScript. / Enable JavaScript to use the interactive explanation.</p></noscript>
+</body>
+</html>
