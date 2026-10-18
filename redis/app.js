@@ -2,6 +2,9 @@ import {chapters} from './content.js';
 import {storyScene} from './scenes.js';
 import {createLab, reduceLab, labView} from './model.js';
 import {messages, localize, chooseLanguage, chapterUrl} from './i18n.js';
+import {Playback} from './playback.js';
+import {sceneAnimations} from './motion.js';
+import {choreography} from './choreography.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -15,68 +18,62 @@ let lang = chooseLanguage({search:location.search, stored, languages:navigator.l
 let chapterIndex = Math.max(0,chapters.findIndex(c=>c.id===decodeHash()));
 let stepIndex = 0;
 let rate = 1;
-let playing = false;
-let paused = false;
-let animationTimer;
-let animationStarted = 0;
-let animationRemaining = 2200;
+let autoPaused = false;
+let timelineDuration = 0;
 const labStates = new Map();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const smallViewport = matchMedia('(max-width: 680px)');
 const t = key => messages[lang][key];
 const l = value => localize(value,lang);
 const current = () => chapters[chapterIndex];
+const playback = new Playback(renderPlaybackState);
 function decodeHash() { try {return decodeURIComponent(location.hash.slice(1));} catch {return '';} }
 function updateUrl(push=false) {
   history[push?'pushState':'replaceState']({chapter:current().id,step:stepIndex},'',chapterUrl(current().id,lang,location.pathname));
 }
 function stopAnimation() {
-  clearTimeout(animationTimer);
-  playing=false; paused=false;
-  $('scene').classList.remove('is-playing','is-paused');
-  renderPlayButton();
+  playback.cancel(false);
 }
 function renderPlayButton() {
   $('play').disabled=reducedMotion.matches;
-  $('play').innerHTML=icon(playing&&!paused?'pause':'play',13);
-  $('play').setAttribute('aria-label',t(playing&&!paused?'pause':'play'));
-  $('play').title=t(playing&&!paused?'pause':'play');
+  const running=playback.state==='running';
+  $('play').innerHTML=icon(running?'pause':'play',13);
+  $('play').setAttribute('aria-label',t(running?'pause':'play'));
+  $('play').title=t(running?'pause':'play');
 }
-function beginAnimation() {
-  stopAnimation();
-  if(reducedMotion.matches) return;
-  $('scene').classList.remove('is-playing');
-  void $('scene').offsetWidth;
-  playing=true; animationStarted=performance.now(); animationRemaining=2200/rate;
-  $('scene').classList.add('is-playing');
-  animationTimer=setTimeout(stopAnimation,animationRemaining);
+function renderPlaybackState() {
+  const busy=playback.busy;
+  $('scene').setAttribute('aria-busy',String(busy));
+  $('player').dataset.playback=playback.state;
+  $('player').dataset.duration=String(timelineDuration);
+  $('previous').disabled=busy||(chapterIndex===0&&stepIndex===0);
+  $('next').disabled=busy;
+  $('replay').disabled=busy||reducedMotion.matches;
+  for(const id of ['under','try','zoom'])$(id).disabled=busy;
   renderPlayButton();
+}
+function beginAnimation({elapsed=0,paused=false}={}) {
+  stopAnimation();
+  renderDiagram();
+  if(reducedMotion.matches) {timelineDuration=0;playback.start([]);return;}
+  const previousMarkup=stepIndex>0?storyScene(current().id,stepIndex-1,lang,smallViewport.matches):null;
+  const timeline=sceneAnimations({host:$('scene'),previousMarkup,caption:$('explanation'),controls:document.querySelector('.player-controls'),score:choreography(current().id,stepIndex)});
+  timelineDuration=timeline.duration;
+  playback.start(timeline.animations,{rate,elapsed,paused});
 }
 function toggleAnimation() {
-  if(!playing) {beginAnimation();return;}
-  if(paused) {
-    paused=false; animationStarted=performance.now();
-    $('scene').classList.remove('is-paused');
-    animationTimer=setTimeout(stopAnimation,animationRemaining);
-  } else {
-    paused=true; animationRemaining=Math.max(0,animationRemaining-(performance.now()-animationStarted));
-    clearTimeout(animationTimer); $('scene').classList.add('is-paused');
-  }
-  renderPlayButton();
+  if(!playback.busy)beginAnimation();
+  else if(playback.paused)playback.resume();
+  else playback.pause();
 }
 function renderDiagram() {
   $('scene').innerHTML=storyScene(current().id,stepIndex,lang,smallViewport.matches);
-  // A moving message follows each displayed connection. Geometry stays owned by the diagram.
-  const connections=[...$('scene').querySelectorAll('.flow path')].filter(path=>path.getAttribute('stroke')!=='#d9dfdf');
-  connections.forEach((path,index)=>{
-    const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
-    dot.setAttribute('r','4'); dot.setAttribute('class','message-dot');
-    dot.style.offsetPath=`path('${path.getAttribute('d')}')`;
-    dot.style.animationDuration=`${2200/connections.length/rate}ms`;
-    dot.style.animationDelay=`${index*2200/connections.length/rate}ms`;
-    dot.style.opacity='0';
-    path.parentNode.insertBefore(dot,path.nextSibling);
-  });
+  settleDiagram($('scene'));
+}
+function settleDiagram(host) {
+  host.querySelectorAll('[data-transient="true"]').forEach(el=>{el.style.opacity='0';});
+  const sequenced=[...host.querySelectorAll('[data-sequence]')];
+  for(const el of sequenced)if(sequenced.some(other=>other.dataset.motion===el.dataset.motion&&other.dataset.role===el.dataset.role&&Number(other.dataset.sequence)>Number(el.dataset.sequence)))el.style.opacity='0';
 }
 function renderMenu() {
   $('contentsTitle').textContent=t('app'); $('chapterCount').textContent=t('chapters');
@@ -86,7 +83,8 @@ function renderDetails() {
   const chapter=current();
   $('detailsTitle').textContent=`${t('under')} · ${l(chapter.title)}`;
   const command=chapter.steps[stepIndex].command;
-  $('detailsBody').innerHTML=`${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3><ul class="source-list">${chapter.sources.map(s=>`<li><a href="${escape(s.url)}" target="_blank" rel="noopener noreferrer">${escape(l(s.label))}</a></li>`).join('')}</ul>`;
+  const detail=chapter.steps[stepIndex].detail;
+  $('detailsBody').innerHTML=`${detail?`<p>${escape(l(detail))}</p>`:''}${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3><ul class="source-list">${chapter.sources.map(s=>`<li><a href="${escape(s.url)}" target="_blank" rel="noopener noreferrer">${escape(l(s.label))}</a></li>`).join('')}</ul>`;
 }
 function getLab() {
   if(!labStates.has(current().id)) labStates.set(current().id,createLab(current().id));
@@ -131,10 +129,11 @@ function render({animate=false}={}) {
   $('under').textContent=t('under'); $('try').textContent=t('practice');
   $('zoom').textContent=t('zoom'); $('diagramTitle').textContent=l(current().steps[stepIndex].title);
   $('panHint').textContent=t('pan'); $('largeDiagram').innerHTML=storyScene(current().id,stepIndex,lang).replaceAll('scene-arrow-','zoom-arrow-');
+  settleDiagram($('largeDiagram'));
   $('version').textContent=t('version'); $('modelNotice').textContent=t('model');
   $('motionNotice').hidden=!reducedMotion.matches; $('motionNotice').textContent=t('reduced');
   document.querySelectorAll('.close-dialog').forEach(b=>{b.innerHTML=icon('close',14);b.setAttribute('aria-label',t('close'));});
-  renderDiagram(); renderMenu(); renderDetails(); renderLab(); renderPlayButton();
+  renderDiagram(); renderMenu(); renderDetails(); renderLab(); renderPlaybackState();
   if(animate) beginAnimation();
 }
 function navigate(index,step=0,push=true) {
@@ -142,25 +141,27 @@ function navigate(index,step=0,push=true) {
   updateUrl(push); render({animate:true});
 }
 function next() {
+  if(playback.busy)return;
   if(stepIndex<current().steps.length-1) navigate(chapterIndex,stepIndex+1,false);
   else navigate((chapterIndex+1)%chapters.length,0,true);
 }
 function previous() {
+  if(playback.busy)return;
   if(stepIndex>0) navigate(chapterIndex,stepIndex-1,false);
   else if(chapterIndex>0) navigate(chapterIndex-1,chapters[chapterIndex-1].steps.length-1,true);
 }
 function switchLanguage(nextLang) {
   if(nextLang===lang) return;
-  const wasPlaying=playing,wasPaused=paused;
+  const wasPlaying=playback.busy,wasPaused=playback.paused,elapsed=playback.elapsed;
   stopAnimation(); lang=nextLang;
   try {localStorage.setItem('redis-language',lang);} catch { /* URL still preserves the choice. */ }
   updateUrl(true); render();
-  if(wasPlaying) {beginAnimation();if(wasPaused) toggleAnimation();}
+  if(wasPlaying)beginAnimation({elapsed,paused:wasPaused});
 }
 $('next').addEventListener('click',next); $('previous').addEventListener('click',previous);
 $('skip').addEventListener('click',e=>{e.preventDefault();$('explanation').focus();$('explanation').scrollIntoView({block:'nearest'});});
-$('replay').addEventListener('click',beginAnimation); $('play').addEventListener('click',toggleAnimation);
-$('speed').addEventListener('change',e=>{const wasPlaying=playing;stopAnimation();rate=Number(e.target.value);document.documentElement.style.setProperty('--rate',rate);renderDiagram();if(wasPlaying)beginAnimation();});
+$('replay').addEventListener('click',()=>{if(!playback.busy)beginAnimation();}); $('play').addEventListener('click',toggleAnimation);
+$('speed').addEventListener('change',e=>{rate=Number(e.target.value);playback.setRate(rate);});
 document.querySelectorAll('[data-lang]').forEach(button=>button.addEventListener('click',()=>switchLanguage(button.dataset.lang)));
 $('menuButton').addEventListener('click',()=>{$('contents').showModal();});
 $('under').addEventListener('click',()=>{$('details').showModal();});
@@ -175,7 +176,7 @@ document.addEventListener('keydown',e=>{
   if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('dialog,select,input,textarea,[contenteditable]'))return;
   if(e.key==='ArrowRight'){e.preventDefault();next();}
   if(e.key==='ArrowLeft'){e.preventDefault();previous();}
-  if(e.code==='Space'&&!e.target.closest('button,a')){e.preventDefault();beginAnimation();}
+  if(e.code==='Space'&&!e.target.closest('button,a')){e.preventDefault();toggleAnimation();}
 });
 function routeFromUrl() {
   const nextIndex=chapters.findIndex(c=>c.id===decodeHash());
@@ -186,7 +187,13 @@ function routeFromUrl() {
   stopAnimation();updateUrl(false);render({animate:true});
 }
 window.addEventListener('popstate',routeFromUrl);window.addEventListener('hashchange',routeFromUrl);
-document.addEventListener('visibilitychange',()=>{if(document.hidden)stopAnimation();});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden&&playback.state==='running'){autoPaused=true;playback.pause();}
+  else if(!document.hidden&&autoPaused){autoPaused=false;playback.resume();}
+});
 reducedMotion.addEventListener('change',()=>{stopAnimation();render();});
-smallViewport.addEventListener('change',()=>{stopAnimation();renderDiagram();});
+smallViewport.addEventListener('change',()=>{
+  const busy=playback.busy,paused=playback.paused,elapsed=playback.elapsed;
+  if(busy)beginAnimation({elapsed,paused});else{stopAnimation();renderDiagram();renderPlaybackState();}
+});
 updateUrl(false); render({animate:true});

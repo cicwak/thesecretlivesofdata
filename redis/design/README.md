@@ -1,15 +1,17 @@
 # Visual reference
 
-The approved reference is [raft-style-concept.png](raft-style-concept.png), generated with the built-in `image_gen` tool and approved during implementation. It uses the original [Raft visualization](https://thesecretlivesofdata.com/raft/) as its reference.
+The primary reference is the original [Raft visualization](../../raft/) and its implementation in `raft/scripts/` and `styles/tsld/`. The user requested closer fidelity after approving the earlier [concept](raft-style-concept.png). The concept is retained as design history; current styling and motion were compared directly with the running original.
 
 ## Design system
 
 - White canvas; a narrow `#f8f8f8` navbar with a fine gray border.
-- Helvetica/Arial narrative and controls; monospace technical annotations.
-- Steelblue Redis servers, green clients, dark outlines, restrained message dots.
+- Helvetica/Arial narrative and controls; Courier New diagram labels outside the nodes.
+- Steelblue (`#4682b4`) servers, green clients, black outlines, red requests and hollow reply dots. Data entries have square corners.
 - A central explanation diagram, a short narrative near the bottom and small bordered player controls.
 - Contents, detailed explanations and experiments open on demand. No permanent sidebar or marketing section.
 - Live text, controls, SVG shapes and state; the mockup is not used as the interface.
+- Node entry takes 450 ms; state changes follow the arriving request, and replies leave after the change. Each step has its own finite score. Replay and Continue fade in over 600 ms after the story, with navigation gated on actual animation completion.
+- The default median score including controls is about 2.9 seconds, a modest increase from the earlier fixed 2.2-second playback. Longer steps show multiple operations or a visible wait.
 
 ## Final concept prompt
 

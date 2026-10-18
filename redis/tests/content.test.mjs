@@ -25,6 +25,8 @@ for (const chapter of chapters) {
     for (const [i,step] of chapter.steps.entries()) {
       bilingual(step.title, `steps[${i}].title`);
       bilingual(step.body, `steps[${i}].body`);
+      bilingual(step.detail, `steps[${i}].detail`);
+      for(const lang of ['ru','en'])assert.ok(step.body[lang].length<=160,'one short thought per caption');
       assert.equal(typeof step.command, 'string');
     }
     assert.ok(chapter.deeper.length >= 2);

@@ -28,12 +28,12 @@
       <h2 id="stepTitle" class="sr-only"></h2>
       <p id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></p>
       <div class="player-controls">
-        <button id="previous" class="button icon-button" type="button"></button>
-        <button id="replay" class="button icon-button" type="button"></button>
-        <button id="next" class="button continue" type="button"></button>
+        <button id="replay" class="button icon-button" type="button" disabled></button>
+        <button id="next" class="button continue" type="button" disabled></button>
       </div>
       <div class="utilities">
         <span id="stepCounter"></span><span class="separator" aria-hidden="true">·</span>
+        <button id="previous" class="text-button utility-back" type="button" disabled></button>
         <button id="play" type="button" class="text-button"></button>
         <select id="speed" aria-label="Animation speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
         <span class="separator" aria-hidden="true">·</span><button id="under" class="text-button" type="button" aria-haspopup="dialog"></button>

@@ -26,6 +26,8 @@ Browser checks: complete a story, revisit a previous step, use the chapter menu 
 
 - `content.js`: a shared route with complete Russian and English narratives, deeper explanations and official primary sources.
 - `scenes.js`: native SVG diagrams generated from the current chapter and story step.
+- `choreography.js`: explicit request, mutation, reply and waiting sequences for every step.
+- `motion.js` and `playback.js`: finite Web Animations and their completion, pause, rate and cancellation handling.
 - `model.js`: immutable deterministic experiment states, reducers and bilingual view descriptions.
 - `i18n.js`: interface translations and language/link selection.
 - `app.js` and `redis.css`: the accessible learning player and responsive presentation.
@@ -33,7 +35,9 @@ Browser checks: complete a story, revisit a previous step, use the chapter menu 
 
 Stories and experiments are separate: changing language preserves the story step and each experiment's state. Explicit `?lang=ru|en` wins over the saved preference, then the first browser language is used (`ru` → Russian, otherwise English). Storage being unavailable does not prevent the player working. Chapters use stable hash identifiers.
 
-Narrow screens use native compact diagrams rather than shrinking desktop labels. The full diagram can also be opened separately. See [verification evidence](QA.md) and the [approved visual reference](design/README.md).
+Each screen introduces one idea. The original, longer explanation remains in the current step's **Under the hood** dialog. Navigation and replay unlock only after every animation, including the Raft-style 600 ms controls reveal, has finished. Pause keeps this gate closed. Speed changes preserve elapsed story time; language changes rebuild the same score at that time. Reduced motion shows the settled state immediately. Animation durations illustrate causality, not server latency.
+
+Narrow screens use native compact diagrams rather than shrinking desktop labels. The full diagram can also be opened separately. See [verification evidence](QA.md) and the [Raft visual reference](design/README.md).
 
 ## Educational boundaries
 
