@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redis routing verification</title>
+<style>
+body{margin:24px;font:15px/1.5 system-ui,sans-serif;color:#333;background:white}
+h1{font-size:20px;font-weight:500}#summary{font-weight:600;white-space:pre-wrap}
+#host{width:960px;margin:24px 0;min-height:330px}#host svg{display:block;width:100%;height:auto;overflow:visible}
+#caption{font-size:22px}#results{font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+[data-ghost],.message-dot{pointer-events:none}
+</style>
+<h1>Redis routing verification</h1>
+<p id="summary" data-testid="routing-summary" data-status="running">Starting…</p>
+<div id="host"></div><p id="caption"></p><div id="controls"><button>Replay</button><button>Continue</button></div>
+<pre id="results" data-testid="routing-results"></pre>
+<script type="module">
+import {chapters} from '../content.js';
+import {storyScene} from '../scenes.js';
+import {sceneAnimations} from '../motion.js';
+import {choreography} from '../choreography.js';
+
+const host=document.querySelector('#host'),caption=document.querySelector('#caption'),controls=document.querySelector('#controls');
+const summary=document.querySelector('#summary'),results=document.querySelector('#results');
+const report={scenes:0,flows:0,endpoints:0,animatedMessages:0,texts:0,failures:[],groups:{}};
+const raf=()=>new Promise(resolve=>requestAnimationFrame(resolve));
+const round=value=>Math.round(value*10)/10;
+function fail(kind,context,message){
+  report.failures.push({kind,...context,message});
+  const group=report.groups[kind]??={count:0,samples:[]};group.count++;
+  if(group.samples.length<24)group.samples.push({...context,message});
+}
+function publish(status){
+  summary.dataset.status=status;
+  summary.textContent=`${status.toUpperCase()} · ${report.scenes} scenes · ${report.flows} routes · ${report.endpoints} endpoint checks · ${report.animatedMessages} moving messages · ${report.failures.length} failures`;
+  results.textContent=JSON.stringify({status,counts:Object.fromEntries(Object.entries(report).filter(([,v])=>typeof v==='number')),groups:report.groups,failures:report.failures},null,2);
+}
+function pointOnScreen(path,at){return path.getPointAtLength(at).matrixTransform(path.getScreenCTM());}
+function localPoint(screen,shape){return new DOMPoint(screen.x,screen.y).matrixTransform(shape.getScreenCTM().inverse());}
+function rectDistance(point,box,boundary){
+  const outside=Math.hypot(Math.max(box.x-point.x,0,point.x-box.x-box.width),Math.max(box.y-point.y,0,point.y-box.y-box.height));
+  if(outside||!boundary)return outside;
+  return Math.min(point.x-box.x,point.y-box.y,box.x+box.width-point.x,box.y+box.height-point.y);
+}
+function pathDistance(point,path){
+  const length=path.getTotalLength(),steps=Math.max(8,Math.ceil(length/4));
+  let nearest=Infinity,previous=path.getPointAtLength(0);
+  for(let i=1;i<=steps;i++){
+    const next=path.getPointAtLength(length*i/steps),dx=next.x-previous.x,dy=next.y-previous.y;
+    const projection=Math.max(0,Math.min(1,((point.x-previous.x)*dx+(point.y-previous.y)*dy)/(dx*dx+dy*dy||1)));
+    nearest=Math.min(nearest,Math.hypot(point.x-previous.x-dx*projection,point.y-previous.y-dy*projection));previous=next;
+  }
+  return nearest;
+}
+function endpointDistance(screen,node){
+  const shape=node.matches('circle,rect,path')?node:node.querySelector(':scope > circle,:scope > rect,:scope > path');
+  if(!shape)return rectDistance(localPoint(screen,node),node.getBBox(),false);
+  const point=localPoint(screen,shape);
+  if(shape.tagName==='circle')return Math.abs(Math.hypot(point.x-shape.cx.baseVal.value,point.y-shape.cy.baseVal.value)-shape.r.baseVal.value);
+  if(shape.tagName==='rect')return rectDistance(point,shape.getBBox(),true);
+  return pathDistance(point,shape);
+}
+function checkRoute(flow,byKey,context){
+  const path=flow.querySelector('path');if(!path){fail('path',context,`${flow.dataset.key}: missing path`);return;}
+  for(const [end,at] of [['from',0],['to',path.getTotalLength()]]){
+    const key=flow.dataset[end],target=byKey.get(key);
+    if(!key||!target){fail('reference',context,`${flow.dataset.key}.${end}: ${key||'missing key'}`);continue;}
+    const distance=endpointDistance(pointOnScreen(path,at),target);report.endpoints++;
+    if(!Number.isFinite(distance)||distance>12)fail('docking',context,`${flow.dataset.key}.${end} → ${key}: ${round(distance)} SVG units from visible geometry`);
+  }
+}
+function inspect(svg,context){
+  const keys=new Map();
+  for(const node of svg.querySelectorAll('[data-key]')){
+    if(keys.has(node.dataset.key))fail('duplicate-key',context,node.dataset.key);
+    keys.set(node.dataset.key,node);
+  }
+  for(const flow of svg.querySelectorAll('.flow')){checkRoute(flow,keys,context);report.flows++;}
+  const viewport=svg.getBoundingClientRect(),view=svg.viewBox.baseVal,tolerance=3*viewport.width/view.width;
+  for(const text of svg.querySelectorAll('text')){
+    if(!text.textContent.trim())continue;report.texts++;
+    const box=text.getBoundingClientRect();
+    if(box.left<viewport.left-tolerance||box.top<viewport.top-tolerance||box.right>viewport.right+tolerance||box.bottom>viewport.bottom+tolerance)fail('text-bounds',context,text.textContent.trim().slice(0,100));
+  }
+}
+try{
+  await document.fonts.ready;
+  // Real DOM geometry includes nested actor translations and browser font metrics.
+  for(const chapter of chapters)for(const lang of ['ru','en'])for(const compact of [false,true])for(let step=0;step<chapter.steps.length;step++){
+    host.style.width=compact?'420px':'960px';
+    host.innerHTML=storyScene(chapter.id,step,lang,compact);
+    inspect(host.querySelector('svg'),{chapter:chapter.id,step,lang,layout:compact?'compact':'wide'});report.scenes++;
+  }
+  publish('running');
+  // Seek the actual moving message halfway through every scored flight. The
+  // endpoints must still meet their declared objects after actor reflow.
+  for(const chapter of chapters)for(const lang of ['ru','en'])for(const compact of [false,true])for(let step=0;step<chapter.steps.length;step++){
+    const context={chapter:chapter.id,step,lang,layout:compact?'compact':'wide'};
+    host.style.width=compact?'420px':'960px';host.innerHTML=storyScene(chapter.id,step,lang,compact);caption.textContent=chapter.steps[step].body[lang];
+    const timeline=sceneAnimations({host,previousMarkup:step?storyScene(chapter.id,step-1,lang,compact):null,caption,controls,score:choreography(chapter.id,step),entry:!step});
+    for(const animation of timeline.animations){animation.pause();animation.finished.catch(()=>{});}
+    const svg=host.querySelector('svg'),byKey=new Map([...svg.querySelectorAll('[data-key]')].map(node=>[node.dataset.key,node]));
+    for(const animation of timeline.animations){
+      const dot=animation.effect.target;if(!dot.classList.contains('message-dot'))continue;
+      const timing=animation.effect.getTiming(),at=timing.delay+Number(timing.duration)/2;
+      for(const phase of timeline.animations)phase.currentTime=at;
+      await raf();
+      const flow=dot.closest('.flow'),path=flow.querySelector('path');checkRoute(flow,byKey,{...context,time:round(at)});
+      const rect=dot.getBoundingClientRect(),point=localPoint({x:rect.x+rect.width/2,y:rect.y+rect.height/2},path),distance=pathDistance(point,path);
+      if(!Number.isFinite(distance)||distance>2)fail('message-path',context,`${flow.dataset.key}: moving dot is ${round(distance)} units from its displayed path`);
+      report.animatedMessages++;
+    }
+    timeline.animations.forEach(animation=>animation.cancel());
+    if(step===chapter.steps.length-1)publish('running');
+  }
+  publish(report.failures.length?'fail':'pass');
+}catch(error){fail('exception',{},String(error.stack||error));publish('fail');}
+</script>
+</html>

@@ -43,3 +43,17 @@ Intentional differences from Raft: Redis buffers and internal structures use rec
 ## Scope
 
 The browser model illustrates Redis Open Source 8.0.0. Timing and capacity are explanatory, not benchmarks. Atomic execution, rollback, persistence and replication remain separate concepts. This UI refinement preserves the pinned technical audit and deterministic model tests; it does not claim to have rerun the optional native Redis binary suite.
+
+## Local follow-up: event-loop routing
+
+The local review found that the desktop replies pointed into empty space and the compact replies went below the server instead of back to the clients. Corrected `+OK → A` and `"Alice" → B` in both layouts, and docked all three request paths at the Redis circle. Request/mutation/reply ordering is unchanged.
+
+`npm run test:redis`: **126 passed**, including circle-boundary routing checks for both languages and layouts and the absence of a reply while the script remains busy. Desktop and 390 × 844 views were manually checked for both replies. This review was performed in the local Hugo preview before publication approval.
+
+## Local follow-up: routing across all 21 chapters
+
+Audited every request, reply and internal transfer in both languages and both layouts. Each flow now declares semantic source/recipient keys. Corrected client ownership in atomicity, transactions, scripting, blocking commands and leases; replica acknowledgements and PSYNC direction; WAIT/WAITAOF and Sentinel replies; MOVED/ASK redirects; Pub/Sub delivery and Stream entry/PEL routes. TTL and memory-limit client commands now have visible client endpoints. Dictionary, encoding, persistence and specialized-structure transfers meet their visible objects. The existing causal ordering and minimal player controls are preserved.
+
+`npm run test:redis`: **145 passed**, including endpoint existence and semantic routing regressions. The reusable `tests/routing-browser.html` passed **504 scene variants**, **962 routes**, **3,360 endpoint checks**, **718 moving messages** and **4,414 text-bound checks**, with **zero failures**. This uses actual browser SVG geometry, including nested actor translations, and checks endpoints again halfway through each scored message flight after actor reflow. A 12-SVG-unit boundary tolerance allows arrowhead clearance; moving dots must remain within 2 units of their displayed path.
+
+The corrected runtime files were copied into the local Hugo source and its running preview. The desktop and 390 × 844 BLPOP wake-up views were also inspected in that preview: the producer sends RPUSH to Redis and the waiting client A receives the item. No push or deployment was performed during this local review; publication is a separate operation following explicit user approval.

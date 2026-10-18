@@ -22,6 +22,8 @@ These tests use Node's built-in test runner and need no installed npm packages. 
 
 Browser checks: complete a story, revisit a previous step, use the chapter menu and direct links, switch RU/EN during an animation, and replay a step. Check narrow and wide viewports, keyboard controls, and reduced motion. Internal model tests cover counter interleavings, transactional errors, WATCH, blocking clients, lease ownership, expiry and eviction, persistence, replication, failover, cluster slots, Pub/Sub and Streams.
 
+For a reproducible routing audit, serve the repository and open [`tests/routing-browser.html`](tests/routing-browser.html). It checks all story stops in RU/EN and both layouts using real SVG geometry, then seeks every moving message during its flight. Each arrow declares its source and recipient; the audit verifies that both ends meet those objects after layout changes. Node tests separately check semantic recipients, such as a blocked client's reply, replication acknowledgements and Cluster redirects. The browser page reports its counts and any failures as JSON; it is a development check, not part of the player.
+
 ## Structure
 
 - `content.js`: a shared route with complete Russian and English narratives, deeper explanations and official primary sources.
