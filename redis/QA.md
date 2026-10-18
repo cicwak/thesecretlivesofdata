@@ -55,10 +55,13 @@ Material issues fixed during verification: skip-link navigation originally reset
 
 Screenshots:
 
-- [Original Raft reference](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/raft-reference.png)
-- [Desktop](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-desktop.png)
-- [Mobile](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-mobile.png)
-- [Per-step source evidence](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-source-audit.png)
+- [Original Raft reference](design/qa/raft-reference.png)
+- [Desktop](design/qa/redis-desktop.png)
+- [Mobile](design/qa/redis-mobile.png)
+- [Per-step source evidence](design/qa/redis-source-audit.png)
+- [Final player without footer](design/qa/redis-without-footer.png)
+
+The first screenshots record earlier verification stages; the final player screenshot shows the subsequent footer removal.
 
 ## Limits of the model
 
