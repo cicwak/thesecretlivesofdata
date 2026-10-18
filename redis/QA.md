@@ -12,7 +12,7 @@ The first-key chapter now has seven stops (SET Bob and DEL are separate), dictio
 
 A temporary in-browser harness rendered all **504 settled variants**: every story stop in both languages, at desktop and compact widths. It checked keys, actor anchors, accessibility names and **4,370 visible text bounds**. It then sampled **136 transitions**, checking **1,648 actor positions** at initial, intermediate and final times. Final result: **zero failures**.
 
-Material issue fixed during this pass: text-only I/O/background actors must be included when centering the event-loop scene; excluding them moved the labels beyond the right edge.
+Material issues fixed during this pass: text-only I/O/background actors must be included when centering the event-loop scene; excluding them moved the labels beyond the right edge. Final screenshot comparison also caught a command label crowded inside the request buffer: redundant separators were removed, command checks were split over two lines, and all six settled Russian request states were checked against their own container bounds without overflow.
 
 Manual checks in the in-app browser:
 
@@ -26,7 +26,7 @@ Manual checks in the in-app browser:
 
 ## Visual comparison
 
-The reference is the running original Raft at the normal **1280 × 720** viewport. The current presentation follows the user’s explicit refinement of that reference. The earlier images in `design/qa/` record design history.
+The reference is the running original Raft at **1280 × 720**. The final Hugo rendering was also inspected at the user’s **846 × 1034** viewport; screenshots were compared with `view_image`. The current presentation follows the user’s explicit refinement of that reference. The earlier images in `design/qa/` record design history.
 
 | Point | Current result |
 | --- | --- |
