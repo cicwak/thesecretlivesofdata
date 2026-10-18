@@ -1,22 +1,20 @@
 # Visual reference
 
-The primary reference is the original [Raft visualization](../../raft/) and its implementation in `raft/scripts/` and `styles/tsld/`. The user requested closer fidelity after approving the earlier [concept](raft-style-concept.png). The concept is retained as design history; current styling and motion were compared directly with the running original.
+The reference is the original [Raft visualization](../../raft/) and its keyed, centered object layout in `raft/scripts/layout/`. The current direction follows the user’s explicit refinement: keep the top bar, a white canvas, one caption and grouped Replay/Continue controls. The earlier [concept](raft-style-concept.png) is design history and does not define the current controls.
 
-## Design system
+## Presentation
 
-- White canvas; a narrow `#f8f8f8` navbar with a fine gray border.
-- Helvetica/Arial narrative and controls; Courier New diagram labels outside the nodes.
-- Steelblue (`#4682b4`) servers, green clients, black outlines, red requests and hollow reply dots. Data entries have square corners.
-- A central explanation diagram, a short narrative near the bottom and small bordered player controls.
-- Contents, detailed explanations and experiments open on demand. No permanent sidebar or marketing section.
-- Live text, controls, SVG shapes and state; the mockup is not used as the interface.
-- Node entry takes 450 ms; state changes follow the arriving request, and replies leave after the change. Each step has its own finite score. Replay and Continue fade in over 600 ms after the story, with navigation gated on actual animation completion.
-- The default median score including controls is about 2.9 seconds, a modest increase from the earlier fixed 2.2-second playback. Longer steps show multiple operations or a visible wait.
+- White canvas, a narrow pale-gray navbar, RU/EN and the chapter menu.
+- Helvetica/Arial captions and controls; Courier New diagram labels. Steelblue servers, green clients, black outlines and restrained colored messages.
+- No visible chapter counter, step count, speed selector, playback toolbar, secondary diagram caption or experiment controls. Chapter names remain in the document title, menu and screen-reader heading. Sources are available through About this step in the menu.
+- Replay and Continue appear after the finite animation completes. Keyboard arrows revisit or advance ready scenes. Reduced motion shows the final composition immediately.
 
-## Final concept prompt
+## Motion
 
-> Create a revised complete UI concept for Redis Internals using the attached ORIGINAL RAFT SCREENSHOT as the explicit visual reference. User requests much closer to original Raft. Match its simplicity, white full-screen canvas, Helvetica/Arial type, narrow very light gray navbar, huge negative space, simple blue server circles and green client circles, monospace diagram annotations, centered short explanation near bottom, small Bootstrap-style Continue/Replay buttons. No permanent sidebar, no dashboard cards, no large top heading, no red Redis logo branding, no marketing section. Full desktop screenshot around1440x1000. Top narrow navbar only: left 'The Secret Lives of Data'; right small 'RU / EN' and hamburger button. Under topbar very subtle centered chapterlabel 'Redis · 01 / 21 · The life of a key'. Main wide whitespace diagram centered in middle: green outlined circle left labeled 'Client A'; blue filled circle right labeled 'Redis', with simple black monospaced rectangular memory key-value annotation beneath it 'user:1 → Alice'. One blue line arrow moving from client toward server, monospace command 'SET user:1 Alice' above line and small reply '+OK' returning below. Simple shapes in style of Raft screenshot, not decorated or nested frames. A few small colored moving message dots on arrows. Bottom centered text in large dark gray Helvetica around28px: 'Redis stores the value in memory.' second line 'The key is the name used to find it again.' Under explanation a small bordered control group: replay icon, 'Continue ›'. Under controls a quiet utility line in small muted text '3 / 6 · 1× · Under the hood · Try it yourself'. Bottom tiny centered 'Redis Open Source 8.0 · Learning model'. Show complete primary screen, do not render a browser chrome or outerframe. Contents opens from hamburger, details and lab open on demand, hence not visible in this primary screen. All text readable and native UI implemented later. Maintain almost exactly original Raft's proportions and humble functional visual character. This is the final interface concept, not a new design direction.
+`composition.js` groups each diagram into semantic actors with locale-independent keys and explicit anchors. A table and its entries move together. `motion.js` interpolates the previous and next actor positions, grows incoming actors from the current focal object, and fades departing actors. The first actor is introduced at the center before the composition expands.
 
-## Content and behavior additions required by the plan
+Request stages grow from one centered socket to a centered two-, three-, four- and five-part pipeline; mobile uses a growing vertical chain. The first key begins with one client, introduces Redis and then makes room for memory. New tables, background workers, snapshot children and pending-work groups change the occupied composition.
 
-The actual chapter names and explanations come from the authored bilingual curriculum, rather than the illustrative mockup copy. Previous, play/pause, keyboard focus and reduced-motion states implement the agreed player requirements. Internal structures use tables, buffers and timelines where circles alone would obscure their meaning. Narrow screens use compact diagrams and can open the full diagram separately.
+Layout finishes before messages travel. Existing values remain visible until the causal state change, and replies follow mutations. All animation phases use the same finite, pausable timeline, so language changes and background-tab pauses preserve progress and canceled scenes cannot unlock a later scene. Durations illustrate a teaching sequence, not server performance.
+
+Story length follows the material: the first key has seven stops, with replacement and deletion separated; dictionary lookup has five, combining hashing and bucket selection. The remaining chapters retain their authored six stops. The shared beat map keeps diagrams, captions, scores and pinned evidence aligned.

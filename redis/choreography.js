@@ -1,3 +1,5 @@
+import { resolveBeat } from './beats.js';
+
 /**
  * The story's animation score. Each step has its own causal sequence; a line in
  * a diagram is not, by itself, permission to send a message over that line.
@@ -203,7 +205,9 @@ export const choreographyIds = Object.freeze(Object.keys(scores));
 /** Return a fresh score so a player cannot modify future replays. */
 export function choreography(id, stepIndex = 0) {
   const chapter = scores[id] || scores['first-key'];
-  const index = Math.max(0, Math.min(chapter.length - 1, Math.trunc(Number(stepIndex) || 0)));
-  const phases = chapter[index].map(phase => ({ ...phase }));
+  const { scene, operation } = resolveBeat(id, stepIndex);
+  const phases = chapter[scene]
+    .filter(phase => operation === undefined || phase.beat === undefined || phase.beat === operation)
+    .map(phase => ({ ...phase }));
   return { phases, total: phases.reduce((sum, phase) => sum + phase.duration, 0) };
 }

@@ -5,8 +5,9 @@ import {evidence,stepEvidence,REDIS_VERSION,SOURCE_COMMITS} from '../evidence.js
 import {storyScene} from '../scenes.js';
 import {choreography} from '../choreography.js';
 import {createLab,reduceLab} from '../model.js';
+import sourceStorage from '../audit/01-05.js';
 
-test('all 126 steps have official documentation and immutable implementation references',()=>{
+test('every story stop has official documentation and immutable implementation references',()=>{
   assert.equal(REDIS_VERSION,'8.0.0');
   assert.deepEqual(Object.keys(evidence),chapters.map(c=>c.id));
   let checked=0;
@@ -26,7 +27,16 @@ test('all 126 steps have official documentation and immutable implementation ref
     }
     for(const ref of chapter.sources)assert.ok(!ref.url.includes('/blob/8.0/'),'chapter references must not float');
   }
-  assert.equal(checked,126);
+  assert.equal(checked,chapters.reduce((sum,chapter)=>sum+chapter.steps.length,0));
+});
+
+test('combined and split stops retain the evidence of their audited source states',()=>{
+  const combined=stepEvidence('dictionary',0);
+  for(const kind of ['docs','code'])for(const source of sourceStorage.dictionary.slice(0,2)){
+    for(const ref of source[kind])assert.ok(combined[kind].some(candidate=>candidate.url===ref.url));
+  }
+  assert.deepEqual(stepEvidence('first-key',5),sourceStorage['first-key'][5]);
+  assert.deepEqual(stepEvidence('first-key',6),sourceStorage['first-key'][5]);
 });
 
 test('a disconnected PubSub scene has no invented subscriber or push',()=>{
