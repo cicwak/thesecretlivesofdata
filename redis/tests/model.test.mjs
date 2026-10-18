@@ -98,12 +98,12 @@ test('unsafe read-modify-write loses an update, two atomic INCRs preserve both',
 
 test('WATCH aborts EXEC without executing any queued command', () => {
   const s=run('transactions',['watch','multi','external','exec']);
-  assert.equal(s.result,'(nil)');assert.equal(s.data.balance,11);assert.equal(s.data.name,'Alice');assert.deepEqual(s.queue,[]);assert.equal(s.watched,null);
+  assert.equal(s.result,'(nil)');assert.equal(s.data.balance,11);assert.equal(s.data.name,'Alice');assert.deepEqual(s.queue,[]);assert.equal(s.watched,false);
 });
 
 test('EXEC executes valid queue without interference and clears WATCH', () => {
   const s=run('transactions',['watch','multi','exec']);
-  assert.equal(s.data.name,'Bob');assert.equal(s.data.balance,11);assert.equal(s.result,'["OK",11]');assert.equal(s.watched,null);
+  assert.equal(s.data.name,'Bob');assert.equal(s.data.balance,11);assert.equal(s.result,'["OK",11]');assert.equal(s.watched,false);
 });
 
 test('EXEC runtime errors keep writes before and after the failed command', () => {
@@ -273,4 +273,24 @@ test('event histories stay bounded and locale-independent through long sessions'
   let s=createLab('atomicity');for(let i=0;i<50;i++)s=reduceLab(s,'incr');
   assert.equal(s.events.length,8);assert.equal(s.value,60);
   const snapshot=JSON.stringify(s);labView(s);assert.equal(JSON.stringify(s),snapshot);
+});
+
+
+test('WATCH uses a dirty attempt flag: watching again does not erase a conflict', () => {
+  let s=run('transactions',['watch','external','watch','multi','exec']);
+  assert.equal(s.result,'(nil)');assert.equal(s.data.name,'Alice');assert.equal(s.watchDirty,false);
+  assert.equal('version' in s,false);
+});
+
+test('WATCH inside MULTI is rejected and does not start watching a key', () => {
+  const s=run('transactions',['multi','watch']);
+  assert.equal(s.result,'ERR WATCH inside MULTI is not allowed');assert.equal(s.watched,false);assert.equal(s.queue.length,2);
+});
+
+test('UNLINK of a cheap object reclaims it synchronously, unlike a large container', () => {
+  let s=run('memory',['unlink']);
+  assert.equal(s.pending,1);assert.deepEqual(s.items.map(x=>x.key),['b','c']);
+  s=reduceLab(s,'unlink');assert.equal(s.pending,1);assert.deepEqual(s.items.map(x=>x.key),['c']);
+  assert.match(s.events.at(-1).en,/synchronously/);
+  s=reduceLab(s,'reclaim');assert.equal(s.pending,0);
 });

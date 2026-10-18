@@ -144,7 +144,7 @@ const scores = {
     step(change(950)),                                    // Mutation creates an AOF record.
     step(message('internal', 850), change(550)),           // write() reaches OS page cache.
     step(message('internal', 850), change(700)),           // fsync reaches storage.
-    step(change(750), hold(450)),                          // Crash removes volatile layers only.
+    step(change(650), hold(400), change(650), hold(450)),  // New unfsynced Carol, then lose only that suffix.
     step(message('internal', 950), change(750)),           // New base + incremental file before switch.
     step(message('internal', 1000), change(750)),          // Read manifest, load base, replay incremental.
   ],
@@ -176,9 +176,9 @@ const scores = {
     step(message('request', 850), change(650)),            // Register subscription before delivery.
     step(message('request', 900), change(600)),            // Publish reaches the live channel.
     step(message('sync', 950, 'parallel'), change(550, 'parallel')), // Real fan-out is concurrent.
-    step(change(600), message('sync', 850, 'parallel')),   // Remove disconnected target before fan-out.
+    step(change(600), message('request', 850)),           // Disconnect A, then publish with no recipient.
     step(message('request', 800), change(650)),            // Re-subscribe, without replaying old data.
-    step(message('request', 700), change(500), message('sync', 850, 'parallel')), // Shard-scoped fan-out.
+    step(message('request', 700), change(400), message('sync', 850), change(400)), // Shard delivery precedes inbox update.
   ],
   streams: [
     step(message('request', 700), change(700), message('reply', 650)), // Assign ID, append, return ID.
@@ -189,7 +189,7 @@ const scores = {
     step(change(500), message('internal', 1000), change(650)), // Radix range lookup reaches listpack.
   ],
   specialized: [
-    step(change(650), message('internal', 800)),            // JSON tree traversal.
+    step(message('internal', 800), change(650)),            // Traverse a JSON path before updating it.
     step(message('internal', 850), change(650)),           // Term lookup finds posting list.
     step(message('internal', 950), change(650)),           // Similarity search visits candidates.
     step(message('internal', 800), change(700)),           // Chunks precede aggregation.

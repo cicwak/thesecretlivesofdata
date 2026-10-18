@@ -5,6 +5,7 @@ import {messages, localize, chooseLanguage, chapterUrl} from './i18n.js';
 import {Playback} from './playback.js';
 import {sceneAnimations} from './motion.js';
 import {choreography} from './choreography.js';
+import {stepEvidence} from './evidence.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -84,7 +85,10 @@ function renderDetails() {
   $('detailsTitle').textContent=`${t('under')} · ${l(chapter.title)}`;
   const command=chapter.steps[stepIndex].command;
   const detail=chapter.steps[stepIndex].detail;
-  $('detailsBody').innerHTML=`${detail?`<p>${escape(l(detail))}</p>`:''}${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3><ul class="source-list">${chapter.sources.map(s=>`<li><a href="${escape(s.url)}" target="_blank" rel="noopener noreferrer">${escape(l(s.label))}</a></li>`).join('')}</ul>`;
+  const proof=stepEvidence(chapter.id,stepIndex);
+  const links=refs=>`<ul class="source-list">${refs.map(s=>`<li><a href="${escape(s.url)}" target="_blank" rel="noopener noreferrer">${escape(l(s.label))}</a></li>`).join('')}</ul>`;
+  const evidenceHtml=proof?`<section data-step-evidence="${chapter.id}:${stepIndex}"><h3>${escape(t('stepSources'))}</h3><p>${escape(t('auditNote'))}</p><h4>${escape(t('documentation'))}</h4>${links(proof.docs)}<h4>${escape(t('implementation'))}</h4>${links(proof.code)}<p><a href="audit/README.md" target="_blank" rel="noopener noreferrer">${escape(t('audit'))}</a></p></section>`:'';
+  $('detailsBody').innerHTML=`${detail?`<p>${escape(l(detail))}</p>`:''}${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${evidenceHtml}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3>${links(chapter.sources)}`;
 }
 function getLab() {
   if(!labStates.has(current().id)) labStates.set(current().id,createLab(current().id));

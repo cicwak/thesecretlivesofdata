@@ -2,7 +2,9 @@ export const messages = {
   en: {
     app: 'Redis Internals', chapters: '21 interactive chapters', home: 'The Secret Lives of Data',
     description: 'Explore Redis internals through 21 interactive chapters: commands, memory, atomicity, persistence and replication.',
-    contents: 'Contents', close: 'Close', language: 'Language', version: 'Redis Open Source 8.0',
+    contents: 'Contents', close: 'Close', language: 'Language', version: 'Redis Open Source 8.0.0',
+    stepSources: 'Evidence for this step', documentation: 'Official documentation', implementation: 'Pinned implementation', audit: 'Full technical audit',
+    auditNote: 'Checked against Redis 8.0.0 source on 2026-10-18. Current documentation may cover newer versions; the pinned source defines this lesson’s baseline. Diagrams simplify capacity and timing.',
     groups: ['One server', 'Working together', 'Memory & time', 'Keeping data', 'Multiple servers', 'Messages & workers', 'Beyond the core'],
     previous: 'Previous', next: 'Continue', nextChapter: 'Next chapter', finish: 'Back to the beginning',
     replay: 'Replay step', play: 'Play this step', pause: 'Pause animation', speed: 'Animation speed',
@@ -21,7 +23,9 @@ export const messages = {
   ru: {
     app: 'Redis изнутри', chapters: '21 интерактивная глава', home: 'The Secret Lives of Data',
     description: 'Изучите внутреннее устройство Redis в 21 интерактивной главе: команды, память, атомарность, сохранение и репликация.',
-    contents: 'Оглавление', close: 'Закрыть', language: 'Язык', version: 'Redis Open Source 8.0',
+    contents: 'Оглавление', close: 'Закрыть', language: 'Язык', version: 'Redis Open Source 8.0.0',
+    stepSources: 'Подтверждение текущего шага', documentation: 'Официальная документация', implementation: 'Зафиксированный исходный код', audit: 'Полный технический аудит',
+    auditNote: 'Сверено с исходниками Redis 8.0.0 18.10.2026. Текущая документация может описывать более новые версии; основу урока задаёт код по неизменяемой ссылке. Ёмкость и время на схемах упрощены.',
     groups: ['Один сервер', 'Несколько клиентов', 'Память и время', 'Сохранение данных', 'Несколько серверов', 'Сообщения и обработчики', 'За пределами ядра'],
     previous: 'Назад', next: 'Продолжить', nextChapter: 'Следующая глава', finish: 'Вернуться к началу',
     replay: 'Повторить шаг', play: 'Воспроизвести шаг', pause: 'Пауза анимации', speed: 'Скорость анимации',

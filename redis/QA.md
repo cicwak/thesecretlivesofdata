@@ -4,11 +4,15 @@ Verified locally on 2026-10-18. This records the implemented static site, not a 
 
 ## Automated checks
 
-`npm run test:redis`: **95 passed**, using Node's built-in runner without external packages.
+`npm run test:redis`: **109 passed**, using Node's built-in runner without external packages.
 
 Coverage includes 21 stable chapters, 126 bilingual steps, desktop and compact SVG states, interface translations and language precedence, immutable experiment state, request parsing, counter races, WATCH, transaction/script errors, blocking clients, lock ownership, expiry/eviction, persistence, replication, failover, CRC16 Cluster slots, Pub/Sub and Stream acknowledgment/reclaim behavior.
 
 The refinement adds explicit choreography coverage for all 126 steps and playback tests for completion gating, pause/rate changes, cancellation of an old scene, rebuilding at an elapsed position and immediate reduced-motion completion. Every short caption is checked in both languages, with its full explanation retained in `step.detail`.
+
+The subsequent [technical audit](audit/README.md) checked all 126 steps against official documentation and pinned Redis 8.0.0 source, including its selected module releases. The new evidence map covers every step; all 229 code file/line references were validated against their exact checkout. Behavioral corrections add WATCH dirty-state, SET encoding, incremental rehash completion, conditional UNLINK, ASKING, recovery and acknowledgment tests.
+
+The optional `native_redis8.py` suite also passed **15 real Redis 8.0.0 integration tests**, using no Python packages and only disposable private Unix-socket servers. Additional isolated checks covered encodings and local Cluster script rules. Modules were source-reviewed rather than executed. Real power cuts and an exhaustive distributed failover matrix were not tested.
 
 JavaScript syntax checks and `git diff --check` pass. The legacy Raft/PhantomJS suite is unchanged; it is separate from `test:redis`.
 
@@ -29,6 +33,7 @@ Used the Codex in-app browser against `http://127.0.0.1:8080/redis/`. No Playwri
 - Rebuilt a scene at 1800 ms, resumed and switched language during playback: already-completed early phases stayed complete. A regression test covers Web Animations' automatic rewind when `play()` is called at an animation's end.
 - Sampled eight targeted lock/Stream variants (two chapters × two languages × two layouts) before and after their second mutation: an expired lock and PEL-A appear first; token B, its timeline and PEL-B remain hidden until acquisition/claim. Old TTL and endpoint-command labels do not overlap their replacements. The targeted audit again found zero clipping and label overlaps.
 - Checked the native concept dimensions **1504 × 1046**, the normal in-app viewport **846 × 1034**, and mobile **390 × 844**. Temporary viewport overrides are reset before handoff.
+- After the source audit, reran all 504 SVG variants: zero clipping, overlaps, text-container overflow, missing animation roles or duplicate keys. Twenty native WAAPI samples checked RDB restore, AOF prefix/suffix loss and WAIT/WAITAOF reply ordering. Corrected labels and the rejected lock reply's destination. Checked the new per-step source section and language switching in the live details dialog with no console errors.
 
 ## Visual comparison
 
@@ -53,6 +58,7 @@ Screenshots:
 - [Original Raft reference](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/raft-reference.png)
 - [Desktop](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-desktop.png)
 - [Mobile](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-mobile.png)
+- [Per-step source evidence](/Users/kostya/.codex/visualizations/2026/10/18/01a14f80-0cee-7553-a08d-53e5d548176e/redis-source-audit.png)
 
 ## Limits of the model
 

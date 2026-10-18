@@ -35,7 +35,7 @@ function arrow(x1, y1, x2, y2, label = '', opt = {}) {
   const role = opt.role || (color === C.green ? 'reply' : color === C.blue ? 'sync' : 'request');
   const active = color !== C.line && !opt.dashed;
   const stage = opt.stage ?? (role === 'reply' ? 3 : 1);
-  return node(opt.key || `flow-${x1}-${y1}-${x2}-${y2}`, `<path d="M${x1} ${y1} L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="1.5"${opt.dashed ? ' stroke-dasharray="5 5"' : ''} marker-end="url(#scene-arrow-${color.replace('#', '')})"/>${label ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 10}" text-anchor="middle" font-family="Courier New, Courier, monospace" font-size="15" fill="${color === C.line ? C.muted : color}" stroke="white" stroke-width="5" paint-order="stroke">${E(label)}</text>` : ''}`, { flow: true, role, motion: opt.motion || (active ? 'flow' : 'context'), stage, sequence: opt.sequence });
+  return node(opt.key || `flow-${x1}-${y1}-${x2}-${y2}`, `<path d="M${x1} ${y1} L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="1.5"${opt.dashed ? ' stroke-dasharray="5 5"' : ''} marker-end="url(#scene-arrow-${color.replace('#', '')})"/>${label ? `<text x="${opt.labelX ?? (x1 + x2) / 2}" y="${opt.labelY ?? (y1 + y2) / 2 - 10}" text-anchor="middle" font-family="Courier New, Courier, monospace" font-size="15" fill="${color === C.line ? C.muted : color}" stroke="white" stroke-width="5" paint-order="stroke">${E(label)}</text>` : ''}`, { flow: true, role, motion: opt.motion || (active ? 'flow' : 'context'), stage, sequence: opt.sequence });
 }
 function note(label, opt = {}) {
   const words = String(label).split(' '), lines = [''];
@@ -90,7 +90,7 @@ function firstKey(s, lang) {
 }
 function request(s, lang) {
   const labels = [L(lang, 'TCP socket', 'TCP-сокет'), L(lang, 'Input buffer', 'Входной буфер'), L(lang, 'RESP parser', 'Разбор RESP'), L(lang, 'Command checks', 'Проверки'), L(lang, 'Output buffer', 'Выходной буфер')];
-  const bodies = [[L(lang, 'ordered bytes', 'поток байтов')], [s === 2 ? 'user:1 · Ali…' : s >= 3 ? 'user:1 · Alice' : '*3 · $3 · SET …'], [s < 3 ? L(lang, 'need more bytes', 'нужны ещё байты') : 'SET user:1 Alice'], [L(lang, 'arity · ACL · type', 'аргументы · ACL · тип')], ['+OK\\r\\n']];
+  const bodies = [[L(lang, 'ordered bytes', 'поток байтов')], [s === 2 ? 'user:1 · Ali…' : s >= 3 ? 'user:1 · Alice' : '*3 · $3 · SET …'], [s < 3 ? L(lang, 'need more bytes', 'нужны ещё байты') : 'SET user:1 Alice'], [L(lang, 'arity · ACL · state', 'аргументы · ACL · режим')], ['+OK\\r\\n']];
   const stage = [0, 1, 1, 2, 3, 4][s];
   let out = labels.map((v, i) => i > stage ? '' : box(20 + i * 190, 89, 160, 110, v, bodies[i], { key: `request-part-${i}`, active: i === stage, stateMotion: i === stage ? 'change' : 'context', size: 14, titleSize: 16 })).join('');
   for (let i = 0; i < stage; i++) out += arrow(183 + i * 190, 143, 202 + i * 190, 143, '', { key: `request-transfer-${i}`, role: s === 5 && i === 3 ? 'reply' : 'internal', stage: 1, color: i === Math.max(0, stage - 1) ? s === 5 ? C.green : C.red : C.line });
@@ -148,7 +148,7 @@ function encodings(s, lang) {
     for (let i = 0; i < 2; i++) { out += box(480 + i * 225, 130, 195, 81, 'listpack', [i === 0 ? 'A | B | C' : 'D | E | F'], { key: `list-block-${i}`, titleSize: 16, size: 15, stateMotion: 'change' }); if (i === 0) out += arrow(682, 170, 699, 170, '', { color: C.ink, role: 'internal', stage: 1 }); }
   } else if (s === 2) {
     out += box(75, 88, 335, 137, 'Set → intset', ['[ 2, 5, 8, 13 ]', L(lang, 'other small sets: listpack', 'другие малые Set: listpack')], { active: true, code: true });
-    out += box(555, 88, 330, 137, 'Set → hashtable', ['"apple" → ∅', '"orange" → ∅'], { code: true });
+    out += box(555, 88, 330, 137, 'Set → hashtable', ['2 → ∅ · 5 → ∅', '8 → ∅ · 13 → ∅ · …'], { code: true });
     out += arrow(425, 157, 540, 157, L(lang, 'expand', 'рост'), { color: C.blue, role: 'internal', stage: 1 });
   } else if (s === 3) {
     out += box(75, 88, 335, 137, 'Hash → listpack', ['name | Alice | age | 30', L(lang, 'fields beside their values', 'поля рядом со значениями')], { active: true, size: 15, code: true });
@@ -185,44 +185,44 @@ function atomicity(s, lang) {
 }
 function transactions(s, lang) {
   const watched = s === 2 || s === 3;
-  let out = endpoint(15, 95, L(lang, 'Client A', 'Клиент A'), watched ? 'WATCH balance' : s === 0 ? 'MULTI' : 'EXEC');
+  let out = endpoint(15, 95, L(lang, 'Client A', 'Клиент A'), watched ? 'WATCH count' : s === 0 ? 'MULTI' : 'EXEC');
   out += box(320, 45, 365, 202, watched ? L(lang, 'Watched key', 'Наблюдаемый ключ') : L(lang, 'Transaction queue', 'Очередь транзакции'), [], { active: true });
   if (watched) {
-    out += chip(345, 112, 315, s === 2 ? L(lang, 'balance = 100 · version 1', 'balance = 100 · версия 1') : L(lang, 'balance = 200 · version 2', 'balance = 200 · версия 2'), { size: 14, active: true });
-    out += chip(345, 178, 315, s === 3 ? 'EXEC → (nil)' : 'GET balance → "100"', { color: s === 3 ? '#b44c34' : C.green });
-    out += endpoint(745, 85, L(lang, 'Client B', 'Клиент B'), 'SET balance 200', s === 3, C.blue);
+    out += chip(345, 112, 315, s === 2 ? L(lang, 'count = 0 · WATCH active', 'count = 0 · WATCH активен') : L(lang, 'count = 1 · A dirty', 'count = 1 · попытка A изменена'), { size: 14, active: true });
+    out += chip(345, 178, 315, s === 3 ? 'EXEC → (nil)' : 'GET count → "0"', { color: s === 3 ? '#b44c34' : C.green });
+    out += endpoint(745, 85, L(lang, 'Client B', 'Клиент B'), 'INCR count', s === 3, C.blue);
+    if (s === 3) out += arrow(730, 115, 700, 115, 'INCR', { key: 'transaction-b-request', role: 'request', color: C.red });
     out += arrow(216, 128, 305, 128, s === 2 ? 'WATCH' : 'EXEC', { key: 'transaction-a-request', role: 'request' });
-    if (s === 3) out += arrow(730, 115, 700, 115, 'SET', { key: 'transaction-b-request', role: 'request', color: C.red });
   } else {
-    out += chip(345, 97, 315, 'SET balance 100', { color: s === 1 || s === 4 ? C.green : undefined });
-    out += chip(345, 140, 315, s === 5 ? 'SET only-key → ERR' : s === 4 ? 'LPUSH balance x → WRONGTYPE' : 'INCR balance', { size: 14, color: s >= 4 ? '#b44c34' : undefined });
-    out += chip(345, 183, 315, s === 0 ? 'QUEUED' : s === 5 ? 'EXECABORT · no writes' : s === 4 ? 'balance = "100"' : 'balance = "101"', { size: 14, color: s === 5 ? '#b44c34' : C.green });
-    out += arrow(216, 128, 305, 128, s === 0 ? 'QUEUED' : 'EXEC');
+    out += chip(345, 97, 315, s === 4 ? 'SET a text → OK' : s === 5 ? 'MULTI' : 'SET a 1', { color: s === 1 || s === 4 ? C.green : undefined });
+    out += chip(345, 140, 315, s === 5 ? 'SET a → ERR' : s === 4 ? 'INCR a → ERR integer' : 'INCR b', { size: 14, color: s >= 4 ? '#b44c34' : undefined });
+    out += chip(345, 183, 315, s === 0 ? 'QUEUED' : s === 5 ? 'EXECABORT · no writes' : s === 4 ? 'SET b 2 → OK' : 'a = 1 · b = 1', { size: 14, color: s === 5 ? '#b44c34' : C.green });
+    out += arrow(216, 128, 305, 128, s === 0 ? 'MULTI + commands' : 'EXEC');
     out += text(730, 105, [L(lang, 'Other clients', 'Другие клиенты'), L(lang, s === 0 ? 'may act before EXEC' : 'wait during EXEC', s === 0 ? 'работают до EXEC' : 'ждут во время EXEC')], { size: 14, color: C.muted });
   }
   const notes = [L(lang, 'MULTI queues commands; it does not execute them yet.', 'MULTI накапливает команды, но пока их не исполняет.'), L(lang, 'EXEC runs the queued commands without another client between them.', 'EXEC исполняет очередь без команд других клиентов между её командами.'), L(lang, 'WATCH starts optimistic concurrency control before the read.', 'WATCH включает оптимистичный контроль изменений до чтения.'), L(lang, 'A changed watched key aborts EXEC before the queued commands run.', 'Изменённый ключ отменяет EXEC до исполнения очереди.'), L(lang, 'A run-time error does not roll back SET that already succeeded.', 'Ошибка исполнения не откатывает уже выполненный SET.'), L(lang, 'A queue-time syntax error makes EXECABORT cancel the whole transaction.', 'Ошибка синтаксиса при постановке в очередь вызывает EXECABORT без исполнения.')];
-  out += arrow(305, 212, 216, 212, s === 0 ? 'QUEUED' : s === 2 ? '+OK' : s === 3 ? '(nil)' : s === 5 ? 'EXECABORT' : s === 4 ? 'WRONGTYPE' : '[OK, 101]', { key: 'transaction-result', role: 'reply', color: C.green });
+  out += arrow(305, 212, 216, 212, s === 0 ? 'QUEUED' : s === 2 ? '+OK' : s === 3 ? '(nil)' : s === 5 ? 'EXECABORT' : s === 4 ? '[OK, ERR, OK]' : '[OK, 1]', { key: 'transaction-result', role: 'reply', color: C.green });
   return out + note(notes[s]);
 }
 function scripting(s, lang) {
-  let out = endpoint(10, 86, L(lang, 'Client A', 'Клиент A'), s === 3 ? 'EVALSHA sha1' : s === 4 ? 'FCALL update' : 'EVAL …', s === 0 || s === 3 || s === 4);
+  let out = endpoint(10, 86, L(lang, 'Client A', 'Клиент A'), s === 3 ? 'EVALSHA sha1' : s === 4 ? 'FCALL hello 0' : 'EVAL …', s === 0 || s === 3 || s === 4);
   const title = s === 3 ? L(lang, 'Script cache', 'Кеш скриптов') : s === 4 ? L(lang, 'Function library', 'Библиотека Functions') : L(lang, 'Server-side execution', 'Исполнение на сервере');
   out += box(315, 32, 365, 227, title, [], { active: true });
-  const lines = s === 3 ? ['EVAL → SHA1', 'EVALSHA → cached script', 'NOSCRIPT → load again'] : s === 4 ? ['FUNCTION LOAD', 'FCALL update 1 count', 'INCR + EXPIRE'] : [s === 2 ? 'SET a 1' : 'INCR visits', s === 2 ? 'error("stop")' : 'if n == 1: EXPIRE visits 60', s === 5 ? 'long loop …' : 'return n'];
+  const lines = s === 3 ? ['SCRIPT LOAD → SHA1', 'EVALSHA → cached script', 'NOSCRIPT → load again'] : s === 4 ? ['FUNCTION LOAD', 'FCALL hello 0', 'return "hello"'] : [s === 2 ? 'SET a 1' : 'INCR visits', s === 2 ? 'error("stop")' : 'if n == 1: EXPIRE visits 60', s === 5 ? 'long loop … → BUSY' : s === 2 ? 'a remains 1' : 'return n'];
   lines.forEach((v, i) => { out += chip(340, 91 + i * 45, 315, v, { active: s === 2 || s === 5 ? i === 2 : i === 0, color: s === 2 && i === 2 ? '#b44c34' : undefined, size: 14 }); });
   out += endpoint(745, 86, L(lang, 'Client B', 'Клиент B'), 'GET count', false, C.blue);
-  out += arrow(218, 123, 300, 123, s === 4 ? 'FCALL' : 'EVAL');
+  out += arrow(218, 123, 300, 123, s === 3 ? 'EVALSHA' : s === 4 ? 'FCALL' : 'EVAL');
   out += arrow(730, 123, 695, 123, L(lang, 'wait', 'ждёт'), { color: C.muted, dashed: true });
-  if (s !== 5) out += arrow(300, 230, 218, 230, s === 2 ? 'ERR' : s === 3 ? 'NOSCRIPT' : ':1', { key: 'script-reply', role: 'reply', color: C.green });
+  if (s !== 5) out += arrow(300, 230, 218, 230, s === 2 ? 'ERR' : s === 3 ? '"Alice"' : s === 4 ? '"hello"' : ':1', { key: 'script-reply', role: 'reply', color: C.green });
   if (s === 2) out += chip(735, 220, 195, 'a = 1', { size: 14, color: '#b44c34' });
-  const notes = [L(lang, 'INCR and EXPIRE can be composed into one atomic server-side operation.', 'INCR и EXPIRE можно объединить в атомарную операцию внутри сервера.'), L(lang, 'No other client command runs in the middle of this script.', 'Команда другого клиента не вклинивается внутрь скрипта.'), L(lang, 'A script error leaves earlier writes in place; there is no automatic rollback.', 'Ошибка скрипта оставляет ранние записи: автоматического отката нет.'), L(lang, 'EVALSHA reuses a cached script; clients must handle a missing cache entry.', 'EVALSHA использует кеш скриптов; клиент должен обработать отсутствие скрипта.'), L(lang, 'Functions are named server-side code managed as persistent libraries.', 'Functions — именованный код сервера, который хранится в библиотеках.'), L(lang, 'A long-running script delays every other command while it executes.', 'Долгое исполнение скрипта задерживает все остальные команды.')];
+  const notes = [L(lang, 'INCR and EXPIRE can be composed into one atomic server-side operation.', 'INCR и EXPIRE можно объединить в атомарную операцию внутри сервера.'), L(lang, 'No other client command runs in the middle of this script.', 'Команда другого клиента не вклинивается внутрь скрипта.'), L(lang, 'A script error leaves earlier writes in place; there is no automatic rollback.', 'Ошибка скрипта оставляет ранние записи: автоматического отката нет.'), L(lang, 'EVALSHA reuses a cached script; clients must handle a missing cache entry.', 'EVALSHA использует кеш скриптов; клиент должен обработать отсутствие скрипта.'), L(lang, 'Functions are named server-side code managed as persistent libraries.', 'Functions — именованный код сервера, который хранится в библиотеках.'), L(lang, 'After busy-reply-threshold, ordinary commands receive BUSY; the script keeps running.', 'После busy-reply-threshold обычные команды получают BUSY; скрипт продолжает работу.')];
   return out + note(notes[s]);
 }
 function blocking(s, lang) {
   const wake = s === 2;
   let out = endpoint(10, 35, L(lang, 'Client A', 'Клиент A'), s === 4 || s === 5 ? 'BLPOP jobs 0' : 'BLPOP jobs 5', s === 0);
   out += box(315, 50, 360, 145, 'Redis · jobs', [s === 2 ? '[ "task:1" ] → A' : '[ ]', L(lang, s === 5 ? 'item removed before worker crash' : 'command executor remains available', s === 5 ? 'элемент удалён до сбоя обработчика' : 'исполнитель команд доступен')], { active: s >= 1, code: true, size: 14 });
-  out += endpoint(745, 35, L(lang, 'Client B', 'Клиент B'), s === 2 ? 'RPUSH jobs task:1' : s === 4 ? 'BLPOP jobs 0' : 'GET other', s === 1 || s === 2, C.blue);
+  out += endpoint(745, 35, L(lang, 'Client B', 'Клиент B'), s === 2 ? 'RPUSH jobs task:1' : s === 4 ? 'BLPOP jobs 0' : 'GET user:1', s === 1 || s === 2, C.blue);
   out += box(65, 201, 315, 62, L(lang, wake ? 'A resumed' : s === 3 ? 'timeout → (nil)' : s === 5 ? 'A crashed after pop' : 'A waits for an item', wake ? 'A продолжает работу' : s === 3 ? 'таймаут → (nil)' : s === 5 ? 'A упал после pop' : 'A ожидает элемент'), [], { titleSize: 16, dashed: !wake, color: wake ? C.green : C.muted });
   if (s === 0) out += arrow(218, 85, 300, 85, 'BLPOP', { key: 'blocking-wait-request', role: 'request' });
   if (s === 1) out += arrow(730, 85, 690, 85, 'GET', { key: 'blocking-b-request', role: 'request' }) + arrow(690, 160, 730, 160, '"Alice"', { key: 'blocking-b-reply', role: 'reply', color: C.green });
@@ -233,6 +233,16 @@ function blocking(s, lang) {
   return out + note(notes[s]);
 }
 function locks(s, lang) {
+  if (s === 3 || s === 5) {
+    const fenced=s===5;
+    let out=endpoint(10, 53, L(lang, 'Stale A', 'Старый A'), fenced?'write(fence=41)':'write(resource)');
+    out+=box(337, 53, 286, 160, L(lang, 'External resource', 'Внешний ресурс'), [fenced?'highest fence = 42':L(lang,'A and B can both write','A и B могут писать')], {key:'lock-external-resource',active:true,size:14,titleSize:16});
+    if(!fenced)out+=endpoint(745, 53, L(lang,'Current B','Новый B'),'write(resource)',true,C.blue);
+    out+=arrow(218,110,322,110,fenced?'41':'write',{key:'lock-external-a',role:'request'});
+    if(!fenced)out+=arrow(730,140,638,140,'write',{key:'lock-external-b',role:'request'});
+    if(fenced)out+=arrow(322,170,218,170,L(lang,'rejected','отклонено'),{key:'lock-fenced-reply',role:'reply',color:C.green});
+    return out+note(L(lang,fenced?'The resource rejects a fence below the highest it has accepted. Redis SET does not create fencing numbers.':'A expired; B owns the lease. Expiration did not stop A.',fenced?'Ресурс отклоняет номер ниже уже принятого. SET не создаёт fencing-номера.':'Срок A истёк; арендой владеет B. Истечение не остановило A.'));
+  }
   const owner = s < 2 ? 'token-A' : 'token-B';
   let out = endpoint(10, 53, L(lang, 'Client A', 'Клиент A'), s >= 3 ? 'release(token-A)' : 'SET lock token-A NX PX 5000', s === 0);
   out += box(337, 53, 286, 132, L(lang, 'Lease in Redis', 'Аренда в Redis'), [], { key: 'lock-lease' });
@@ -249,16 +259,16 @@ function locks(s, lang) {
   if (s === 4) out += text(480, 30, L(lang, 'token-A ≠ token-B → do not delete', 'token-A ≠ token-B → не удалять'), { anchor: 'middle', size: 17, color: '#b44c34' });
   if (s === 5) out += text(480, 30, L(lang, 'External resource rejects an older fencing number', 'Внешний ресурс отклоняет старый fencing-номер'), { anchor: 'middle', size: 16, color: C.blue });
   if (s === 5) out += arrow(155, 190, 805, 190, L(lang, 'write with old fence', 'запись со старым fence'), { key: 'lock-fenced-write', role: 'request' }) + arrow(805, 169, 155, 169, L(lang, 'rejected', 'отклонено'), { key: 'lock-fenced-reply', role: 'reply', color: C.green });
-  if (s === 0 || s === 1 || s === 4) out += arrow(322, 165, 218, 165, s === 0 ? '+OK' : s === 1 ? '(nil)' : ':0', { key: 'lock-reply', role: 'reply', color: C.green });
+  if (s === 0 || s === 1 || s === 4) out += arrow(s === 1 ? 638 : 322, 165, s === 1 ? 730 : 218, 165, s === 0 ? '+OK' : s === 1 ? '(nil)' : ':0', { key: 'lock-reply', role: 'reply', color: C.green });
   return out + note(L(lang, s >= 3 ? 'An expired owner can wake up; external writes need their own protection.' : 'NX grants ownership only if the key is absent; the TTL bounds the lease.', s >= 3 ? 'Старый владелец может проснуться; внешние записи требуют своей защиты.' : 'NX выдаёт владение только при отсутствии ключа; TTL ограничивает срок.'));
 }
 function expiry(s, lang) {
   if (s === 5) {
     let out = server(200, 105, 'Primary', '', true) + server(760, 105, L(lang, 'Replica', 'Реплика'), '');
     out += text(200, 223, 'session → ∅', { key: 'expiry-primary', motion: 'change', stage: 2, pass: 0, anchor: 'middle', size: 18 });
-    out += arrow(270, 105, 690, 105, 'DEL session', { key: 'expiry-propagation', role: 'sync', color: C.blue });
+    out += arrow(270, 105, 690, 105, 'DEL / UNLINK', { key: 'expiry-propagation', role: 'sync', color: C.blue });
     out += text(760, 223, 'session → ∅', { key: 'expiry-replica', motion: 'change', stage: 2, pass: 1, anchor: 'middle', size: 18 });
-    return out + note(L(lang, 'The primary deletes first, then propagates DEL to its replicas.', 'Primary сначала удаляет ключ, затем передаёт DEL репликам.'));
+    return out + note(L(lang, 'The primary propagates DEL, or UNLINK when lazyfree-lazy-expire is enabled.', 'Primary передаёт DEL, либо UNLINK при включённом lazyfree-lazy-expire.'));
   }
 
   const expired = s >= 1 && s <= 3, removed = s === 2 || s === 3 || s === 5;
@@ -288,7 +298,7 @@ function memory(s, lang) {
     out += chip(575, 190, 310, L(lang, 'memory awaits reclamation', 'память ждёт освобождения'), { key: 'unlink-pending', pass: 0, transient: true, size: 14 });
     out += arrow(730, 142, 730, 176, 'lazyfree', { key: 'unlink-background', role: 'internal', color: C.blue });
     out += chip(575, 190, 310, L(lang, 'background memory reclamation', 'фоновое освобождение памяти'), { key: 'unlink-freed', pass: 1, previousUntil: 0, size: 14 });
-    return out + note(L(lang, 'Both remove the key now. UNLINK can defer reclaiming the value allocation.', 'Обе команды сразу убирают ключ. UNLINK может отложить освобождение значения.'));
+    return out + note(L(lang, 'Large container, default DEL settings. UNLINK frees cheap objects synchronously.', 'Большой контейнер, настройки DEL по умолчанию. Дешёвые объекты UNLINK освобождает сразу.'));
   }
 
   const policies = ['allkeys-lru', 'allkeys-lfu', 'noeviction'];
@@ -321,50 +331,65 @@ function latency(s, lang) {
   } else if (s === 1) {
     out += arrow(125, 82, 775, 105, 'GET a · GET b · GET c');
     out += arrow(775, 181, 125, 207, 'a · b · c', { color: C.green });
-    out += chip(323, 125, 300, L(lang, 'one network round trip', 'один сетевой обмен'), { code: false, color: C.blue });
+    out += chip(323, 125, 300, L(lang, 'shared network waiting', 'общее сетевое ожидание'), { code: false, color: C.blue });
   } else {
-    out += arrow(125, 77, 775, 92, s === 3 ? 'SCAN 0 COUNT 100' : L(lang, 'slow command', 'долгая команда'));
+    out += arrow(125, 77, 775, 92, s === 3 ? 'SCAN 0 COUNT 100' : s === 4 ? 'GET large:blob' : 'KEYS user:*');
     out += box(315, 123, 360, 88, s === 3 ? 'SCAN → cursor 84' : s === 5 ? 'INFO · SLOWLOG' : s === 4 ? L(lang, 'Large value / slow reader', 'Большой ответ / медленный клиент') : L(lang, 'Executor is busy', 'Исполнитель занят'), [L(lang, s === 3 ? 'more calls until cursor 0' : s === 5 ? 'measure before changing' : s === 4 ? 'output buffer grows' : 'other commands wait', s === 3 ? 'новые вызовы до курсора 0' : s === 5 ? 'измерить до изменений' : s === 4 ? 'растёт выходной буфер' : 'остальные команды ждут')], { active: true, size: 14, titleSize: 16 });
     out += arrow(775, 225, 125, 246, L(lang, 'reply', 'ответ'), { color: C.green });
   }
   return out + note(L(lang, s === 1 ? 'Pipelining saves network waits; commands still execute in order on the connection.' : s === 3 ? 'SCAN divides traversal into calls; a call can still take noticeable time.' : 'Latency includes both network time and work on the server.', s === 1 ? 'Pipeline убирает сетевые ожидания; команды соединения исполняются по порядку.' : s === 3 ? 'SCAN делит обход на вызовы; отдельный вызов тоже может занять время.' : 'Задержка включает и сеть, и работу на сервере.'));
 }
 function rdb(s, lang) {
+  const childActive = s >= 1 && s <= 3;
   let out = text(165, 30, L(lang, 'Parent · live data', 'Родитель · рабочие данные'), { anchor: 'middle', bold: true });
-  out += text(570, 30, L(lang, 'Child · snapshot', 'Потомок · снимок'), { anchor: 'middle', bold: true });
+  out += text(570, 30, L(lang, childActive ? 'Child · snapshot' : 'No active child', childActive ? 'Потомок · снимок' : 'Нет дочернего процесса'), { anchor: 'middle', bold: true });
   for (let i = 0; i < 3; i++) {
-    out += chip(55, 61 + i * 55, 220, `${L(lang, 'page', 'стр.')} ${i + 1}: ${i === 1 && s >= 2 ? 'Bob' : 'Alice'}`, { color: i === 1 && s >= 2 ? C.green : undefined });
-    if (s >= 1) out += chip(460, 61 + i * 55, 220, `${L(lang, 'page', 'стр.')} ${i + 1}: Alice`, { color: C.blue, role: 'internal', stage: 1 });
-    if (s >= 1 && (i !== 1 || s < 2)) out += arrow(290, 78 + i * 55, 445, 78 + i * 55, i === 1 ? L(lang, 'shared', 'общая') : '', { color: C.blue, role: 'internal', stage: 1 });
+    const changed = i === 1 && s >= 2 && s < 5;
+    out += chip(55, 61 + i * 55, 220, `${L(lang, 'page', 'стр.')} ${i + 1}: ${changed ? 'Bob' : 'Alice'}`, { key: `rdb-parent-${i}`, color: changed ? C.green : undefined });
+    if (childActive) out += chip(460, 61 + i * 55, 220, `${L(lang, 'page', 'стр.')} ${i + 1}: Alice`, { key: `rdb-child-${i}`, color: C.blue });
+    if (childActive && (i !== 1 || s < 2)) out += arrow(290, 78 + i * 55, 445, 78 + i * 55, i === 1 ? L(lang, 'shared', 'общая') : '', { color: C.blue, role: 'internal', motion: s === 1 ? 'flow' : 'context' });
   }
-  if (s >= 2) out += text(365, 140, 'COW', { anchor: 'middle', color: C.green, bold: true });
-  out += box(755, 89, 170, 105, 'dump.rdb', [s >= 4 ? 'Alice · Alice · Alice' : L(lang, 'writing…', 'запись…')], { active: s >= 4, code: true, size: 14 });
-  if (s >= 2) out += arrow(695, 142, 740, 142, '', { color: C.blue, role: 'internal', stage: 1 });
-  if (s === 5) out += chip(185, 230, 580, L(lang, 'Restart → restore the snapshot, not later writes', 'Перезапуск → снимок без более поздних записей'), { color: C.blue, code: false, size: 14 });
-  return out + note(L(lang, s >= 2 ? 'After fork, a write copies the changed memory page; the child sees the old data.' : 'fork creates a snapshot view without eagerly copying every memory page.', s >= 2 ? 'После fork запись копирует изменяемую страницу; потомок видит старые данные.' : 'fork создаёт представление снимка без немедленного копирования всех страниц.'));
+  if (s === 2) out += arrow(290, 133, 445, 133, 'COW', { key: 'rdb-copy', color: C.blue, role: 'internal' });
+  if (s >= 2 && s < 5) out += text(365, 175, 'COW', { anchor: 'middle', color: C.green, bold: true });
+  if (s >= 3) out += box(755, 89, 170, 105, 'dump.rdb', [s >= 4 ? 'Alice · Alice · Alice' : L(lang, 'writing Alice…', 'пишет Alice…')], { active: s >= 4, code: true, size: 14 });
+  if (s === 3) out += arrow(695, 142, 740, 142, '', { key: 'rdb-write', color: C.blue, role: 'internal' });
+  if (s === 5) out += arrow(755, 220, 275, 220, 'load RDB', { key: 'rdb-recovery', color: C.blue, role: 'internal' });
+  if (s === 5) out += chip(185, 250, 580, L(lang, 'Restart → Alice; writes after the snapshot are absent', 'Перезапуск → Alice; более поздних записей нет'), { color: C.blue, code: false, size: 14 });
+  return out + note(L(lang, s === 5 ? 'Loading this completed RDB restores Alice.' : s >= 2 ? 'A parent write copies a shared page; the child retains its snapshot view.' : 'fork creates a snapshot view without eagerly copying every memory page.', s === 5 ? 'Загрузка завершённого RDB возвращает Alice.' : s >= 2 ? 'Запись родителя копирует общую страницу; потомок сохраняет свой вид снимка.' : 'fork создаёт представление снимка без немедленного копирования всех страниц.'), { y: 310 });
 }
 function aof(s, lang) {
   const layers = s >= 4 ? [L(lang, 'Current dataset', 'Текущие данные'), L(lang, 'New AOF files', 'Новые файлы AOF'), L(lang, 'Recovery', 'Восстановление')] : [L(lang, 'Redis RAM', 'RAM Redis'), L(lang, 'OS page cache', 'Кеш страниц ОС'), L(lang, 'Storage', 'Накопитель')];
-  const body = s >= 4 ? [[L(lang, 'live data', 'рабочие данные'), L(lang, 'fork → new base', 'fork → новая основа')], [L(lang, 'base + incremental', 'основа + приращения'), 'manifest'], [s === 5 ? L(lang, 'load base → replay incr', 'основа → приращения') : L(lang, 'atomic file switch', 'смена файлов'), L(lang, 'current dataset', 'актуальные данные')]] : [[s === 3 ? '∅' : 'SET k v', L(lang, 'AOF buffer', 'буфер AOF')], [s === 3 ? '∅' : s >= 1 ? 'SET k v' : '∅', 'write()'], [s === 3 ? L(lang, 'last fsynced data', 'данные после fsync') : s >= 2 ? 'SET k v' : '∅', 'fsync()']];
-  let out = layers.map((v, i) => box(45 + i * 315, 68, 240, 135, v, body[i], { active: i === Math.min(s, 2), code: true, size: 14 })).join('');
+  const body = s >= 4 ? [[L(lang, 'live data', 'рабочие данные'), L(lang, 'fork → new base', 'fork → новая основа')], [L(lang, 'base + incremental', 'основа + приращения'), 'manifest'], [s === 5 ? L(lang, 'load base → replay incr', 'основа → приращения') : L(lang, 'publish manifest', 'публикация manifest'), L(lang, 'current dataset', 'актуальные данные')]] : [[s === 3 ? '∅' : 'SET user:1 Bob', L(lang, 'AOF buffer', 'буфер AOF')], [s === 3 ? '∅' : s >= 1 ? 'SET user:1 Bob' : '∅', 'write()'], [s === 3 ? 'Bob · fsynced' : s >= 2 ? 'SET user:1 Bob' : '∅', 'fsync()']];
+  let out = layers.map((v, i) => box(45 + i * 315, 68, 240, 135, v, body[i], { active: i === Math.min(s, 2), code: true, size: 14, pass: s === 3 && i < 2 ? 1 : undefined, previousUntil: s === 3 && i < 2 ? 0 : undefined, stateMotion: s === 3 && i === 2 ? 'context' : undefined })).join('');
+  if (s === 3) {
+    out += text(61, 125, ['SET user:1 Carol', 'AOF buffer'], { key: 'aof-crash-ram', size: 14, motion: 'change', pass: 0, transient: true });
+    out += text(376, 125, ['SET user:1 Carol', 'write()'], { key: 'aof-crash-os', size: 14, motion: 'change', pass: 0, transient: true });
+  }
   out += arrow(298, 134, 345, 134, '', { color: s >= 1 ? C.blue : C.line, role: 'internal', stage: 1 });
   out += arrow(613, 134, 660, 134, '', { color: s >= 2 ? C.blue : C.line, role: 'internal', stage: 1 });
   out += chip(55, 231, 240, 'appendfsync always', { color: s === 2 ? C.blue : undefined, size: 14 });
   out += chip(360, 231, 240, 'appendfsync everysec', { color: s === 3 ? C.blue : undefined, size: 14 });
   out += chip(675, 231, 240, s >= 4 ? 'BGREWRITEAOF' : 'appendfsync no', { color: s >= 4 ? C.blue : undefined, size: 14 });
-  const notes = [L(lang, 'The command changes memory and produces a record in the Redis AOF buffer.', 'Команда меняет память и создаёт запись в буфере AOF Redis.'), L(lang, 'write() hands bytes to the OS; they are not yet guaranteed on stable storage.', 'write() передаёт байты ОС; это ещё не гарантия устойчивого хранения.'), L(lang, 'The fsync policy chooses when Redis asks the OS to flush data.', 'Политика fsync определяет, когда Redis просит ОС сбросить данные.'), L(lang, 'Power loss discards RAM and unflushed OS cache; the fsynced prefix survives.', 'Потеря питания уничтожает RAM и несброшенный кеш ОС; остаётся префикс после fsync.'), L(lang, 'Rewrite produces a compact base while new writes go into an incremental file.', 'Rewrite создаёт компактную основу, а новые записи попадают в файл приращений.'), L(lang, 'The manifest identifies the base and incremental files to replay on startup.', 'Манифест определяет основу и файлы приращений для восстановления при запуске.')];
+  const notes = [L(lang, 'The command changes memory and produces a record in the Redis AOF buffer.', 'Команда меняет память и создаёт запись в буфере AOF Redis.'), L(lang, 'write() hands bytes to the OS; they are not yet guaranteed on stable storage.', 'write() передаёт байты ОС; это ещё не гарантия устойчивого хранения.'), L(lang, 'The fsync policy chooses when Redis asks the OS to flush data.', 'Политика fsync определяет, когда Redis просит ОС сбросить данные.'), L(lang, 'Bob was fsynced; newer Carol is not. This power-loss scenario restores Bob.', 'Bob покрыт fsync, новая Carol — нет. В выбранном сбое восстановится Bob.'), L(lang, 'Rewrite produces a compact base while new writes go into an incremental file.', 'Rewrite создаёт компактную основу, а новые записи попадают в файл приращений.'), L(lang, 'The manifest identifies the base and incremental files to replay on startup.', 'Манифест определяет основу и файлы приращений для восстановления при запуске.')];
   return out + note(notes[s]);
 }
 function replication(s, lang) {
   const lag = s === 0;
   let out = server(165, 125, 'Primary', 'k = v · offset 120', true);
   out += server(785, 125, L(lang, 'Replica', 'Реплика'), lag ? 'k = ∅ · offset 100' : 'k = v · offset 120', !lag);
-  out += arrow(235, 107, 715, 107, s === 2 ? L(lang, 'PSYNC → backlog 101…120', 'PSYNC → backlog 101…120') : s === 3 ? L(lang, 'FULLRESYNC → RDB + new writes', 'FULLRESYNC → RDB + новые записи') : 'SET k v · offset 120', { key: 'replication-stream', role: 'sync', color: lag ? C.line : C.blue, dashed: lag });
+  if (s < 4) out += arrow(235, 107, 715, 107, s === 2 ? '+CONTINUE · bytes 101…120' : s === 3 ? L(lang, 'FULLRESYNC → RDB + new writes', 'FULLRESYNC → RDB + новые записи') : 'SET k v · offset 120', { key: 'replication-stream', role: 'sync', motion: s >= 4 ? 'context' : undefined, color: lag ? C.line : C.blue, dashed: lag });
   if (s === 0) out += mCircle(25, 125, 'C', '', { key: 'replication-client', color: C.green, r: 18 }) + arrow(105, 125, 51, 125, '+OK', { key: 'replication-client-ok', role: 'reply', color: C.green });
-  if (s === 2 || s === 3) out += arrow(715, 55, 235, 55, s === 2 ? 'PSYNC 100' : 'PSYNC ? -1', { key: 'replication-request', role: 'request', color: C.red });
+  if (s === 2 || s === 3) out += arrow(715, 55, 235, 55, s === 2 ? 'PSYNC <id> 101' : 'PSYNC ? -1', { key: 'replication-request', role: 'request', color: C.red });
   if (s >= 4) out += mCircle(480, 28, 'C', '', { key: 'replication-client', color: C.green, r: 19 }) + arrow(445, 43, 235, 72, s === 4 ? 'WAIT 1 1000' : 'WAITAOF 1 1 1000', { key: 'replication-request', role: 'request', color: C.red });
-  out += arrow(715, 162, 235, 162, lag ? 'ACK 100' : 'ACK 120', { key: 'replication-ack', role: 'reply', motion: lag ? 'context' : 'flow', color: C.green });
-  out += chip(270, 244, 420, s === 2 ? 'PSYNC → +CONTINUE' : s === 3 ? L(lang, 'FULLRESYNC → snapshot + stream', 'FULLRESYNC → снимок + поток') : s === 4 ? 'WAIT 1 1000 → 1' : s === 5 ? 'WAITAOF 1 1 1000 → [1, 1]' : L(lang, lag ? 'primary replied; replica is behind' : 'replica applies the command stream', lag ? 'primary ответил; реплика отстаёт' : 'реплика применяет поток команд'), { code: s >= 2, size: 14, color: C.blue });
+  if (s >= 4) {
+    out += arrow(235, 107, 715, 107, 'REPLCONF GETACK *', { key: 'replication-getack', role: 'sync', color: C.blue });
+  }
+  out += arrow(715, 162, 235, 162, s === 5 ? 'ACK 120 · FACK 120' : lag ? 'ACK 100' : 'ACK 120', { key: 'replication-ack', role: s >= 4 ? 'sync' : 'reply', motion: lag ? 'context' : 'flow', color: C.green });
+  if (s >= 4) {
+    out += arrow(235, 78, 445, 43, s === 4 ? ':1' : '*2 → 1, 1', { key: 'replication-wait-reply', role: 'reply', color: C.green, labelY: 85 });
+  }
+  if (s === 5) out += chip(330, 190, 300, 'AOF fsync → offset 120', { key: 'replication-fsync', size: 14, color: C.blue });
+  out += chip(270, 244, 420, s === 2 ? 'PSYNC → +CONTINUE' : s === 3 ? L(lang, 'FULLRESYNC → snapshot + stream', 'FULLRESYNC → снимок + поток') : s === 4 ? 'WAIT 1 1000 → 1' : s === 5 ? 'WAITAOF 1 1 1000 → [1, 1]' : L(lang, lag ? 'primary replied; replica is behind' : 'replica applies the command stream', lag ? 'primary ответил; реплика отстаёт' : 'реплика применяет поток команд'), { code: s >= 2, size: 14, color: C.blue, stage: s >= 4 ? 4 : 2 });
   const notes = [L(lang, 'The primary can reply OK before a replica has applied the write.', 'Primary может вернуть OK до применения записи репликой.'), L(lang, 'Offsets track progress through the ordered replication stream.', 'Смещения показывают прогресс в упорядоченном потоке репликации.'), L(lang, 'A matching replication history and backlog permit partial synchronization.', 'Подходящая история и backlog позволяют частичную синхронизацию.'), L(lang, 'Without a usable backlog, a full sync sends the dataset and subsequent writes.', 'Без подходящего backlog полная синхронизация передаёт данные и новые записи.'), L(lang, 'WAIT counts replica acknowledgements; it does not turn Redis into Raft.', 'WAIT считает подтверждения реплик; он не превращает Redis в Raft.'), L(lang, 'WAITAOF waits for requested local and replica AOF fsync acknowledgements.', 'WAITAOF ждёт заданное число локальных и репличных подтверждений fsync AOF.')];
   return out + note(notes[s], { y: 305 });
 }
@@ -408,34 +433,36 @@ function cluster(s, lang) {
     out += arrow(780, 110, 100, 65, 'ASK 12182 B', { key: 'cluster-ask', role: 'reply', color: C.green });
     out += text(575, 100, L(lang, 'C → client: ASK 12182 B', 'C → клиент: ASK 12182 B'), { size: 15, color: C.red });
   } else out += text(480, 95, L(lang, 'same hash tag → same slot', 'одинаковый hash tag → один слот'), { anchor: 'middle', size: 16, color: C.green });
-  return out + note(L(lang, s === 4 ? 'ASK redirects this request temporarily; the client sends ASKING to the target.' : s === 3 ? 'MOVED is a reply to the client, which updates its cached slot owner and retries.' : s === 5 ? 'Multi-key commands and scripts require the participating keys to share a slot.' : 'The client routes commands by slot, not by guessing which server holds the key.', s === 4 ? 'ASK временно перенаправляет запрос; клиент отправляет ASKING целевому серверу.' : s === 3 ? 'MOVED возвращается клиенту: он обновляет кеш владельца слота и повторяет запрос.' : s === 5 ? 'Ключи многоключевых команд и скриптов должны находиться в одном слоте.' : 'Клиент направляет команду по слоту, а не угадывает сервер с ключом.'));
+  return out + note(L(lang, s === 4 ? 'ASK redirects this request temporarily; the client sends ASKING to the target.' : s === 3 ? 'MOVED is a reply to the client, which updates its cached slot owner and retries.' : s === 5 ? 'MGET, transactions, and declared script keys require a shared slot.' : 'The client routes commands by slot, not by guessing which server holds the key.', s === 4 ? 'ASK временно перенаправляет запрос; клиент отправляет ASKING целевому серверу.' : s === 3 ? 'MOVED возвращается клиенту: он обновляет кеш владельца слота и повторяет запрос.' : s === 5 ? 'MGET, транзакциям и объявленным ключам скрипта нужен общий слот.' : 'Клиент направляет команду по слоту, а не угадывает сервер с ключом.'));
 }
 function pubsub(s, lang) {
-  let out = endpoint(5, 102, L(lang, 'Publisher', 'Издатель'), 'PUBLISH news hello', s === 1);
+  const payload=s===3?'next':s===5?'shard:hello':'hello';
+  const publishing=[1,2,3,5].includes(s);
+  let out = endpoint(5, 102, L(lang, 'Publisher B', 'Издатель B'), `${s===5?'SPUBLISH':'PUBLISH'} news ${payload}`, s === 1);
   out += node('pubsub-server', `<circle cx="480" cy="140" r="48" fill="${C.server}" stroke="${C.ink}" stroke-width="1.5"/>${text(480, 146, 'Redis', { anchor: 'middle', size: 19, color: C.white })}${text(480, 213, s === 5 ? L(lang, 'shard: news', 'шард: news') : L(lang, 'channel: news', 'канал: news'), { anchor: 'middle', size: 16 })}`);
-  out += endpoint(745, 15, L(lang, 'Subscriber A', 'Подписчик A'), s === 3 ? L(lang, 'disconnected', 'отключён') : s >= 4 ? L(lang, 'future messages only', 'только новые сообщения') : s >= 2 ? '"hello"' : 'SUBSCRIBE news', s === 2, s === 3 ? C.muted : C.green);
-  out += endpoint(745, 167, L(lang, 'Subscriber B', 'Подписчик B'), s >= 2 ? '"hello"' : 'SUBSCRIBE news', s >= 2, C.green);
-  out += text(480, 249, `news → ${s === 3 ? 'B' : 'A, B'}`, { key: 'pubsub-targets', motion: 'change', stage: 2, anchor: 'middle', size: 16 });
-  if (s === 0 || s === 4) out += arrow(790, 53, 542, 116, 'SUBSCRIBE news', { key: 'pubsub-subscribe', role: 'request', color: C.red });
-  out += arrow(215, 133, 415, 133, s >= 1 ? 'hello' : '', { key: 'pubsub-publish', color: s >= 1 ? C.red : C.line, role: 'request' });
-  out += arrow(542, 116, 790, 53, s === 3 ? L(lang, 'missed', 'пропуск') : '', { key: 'pubsub-delivery-a', color: s === 3 || s === 0 ? C.line : C.blue, dashed: s === 3, role: 'sync', stage: 1 });
-  out += arrow(542, 169, 790, 205, '', { key: 'pubsub-delivery-b', color: s === 0 ? C.line : C.blue, role: 'sync', stage: 1 });
+  out += endpoint(745, 102, L(lang, 'Subscriber A', 'Подписчик A'), '', s === 2, s === 3 ? C.muted : C.green);
+  const inbox=s===3?L(lang,'disconnected','отключён'):s===4?L(lang,'future messages only','только новые сообщения'):s===5?'"shard:hello"':s===2?'"hello"':L(lang,'inbox: empty','входящих нет');
+  out += text(835, 233, inbox, {key:'pubsub-inbox',motion:'change',stage:2,pass:s===5?1:0,anchor:'middle',size:14});
+  out += text(480, 249, `news → ${s === 3 ? '∅' : 'A'}`, { key: 'pubsub-targets', motion: 'change', stage: 2, anchor: 'middle', size: 16 });
+  if (s === 0 || s === 4) out += arrow(790, 106, 542, 106, 'SUBSCRIBE news', { key: 'pubsub-subscribe', role: 'request', color: C.red });
+  out += arrow(215, 133, 415, 133, publishing?payload:'', { key: 'pubsub-publish', color: publishing?C.red:C.line, role: 'request' });
+  out += arrow(542, 158, 790, 158, s === 3 ? L(lang, 'missed', 'пропуск') : '', { key: 'pubsub-delivery-a', color: s===2||s===5?C.blue:C.line, dashed:s===3, role: 'sync', stage: 1 });
   return out + note(L(lang, s >= 3 ? 'A cannot replay a missed message: the channel stores no history.' : 'A message goes only to clients subscribed at delivery time.', s >= 3 ? 'A не прочитает пропущенное: канал не хранит историю.' : 'Сообщение идёт клиентам, подписанным в момент доставки.'), { y: 308 });
 }
 function streams(s, lang) {
   if (s === 5) {
     let out = chip(330, 25, 300, 'radix tree · rax', { key: 'stream-index', motion: 'change', pass: 0, size: 17 });
-    out += arrow(420, 73, 245, 110, '1000-*', { role: 'internal', stage: 1, color: C.blue });
-    out += arrow(540, 73, 715, 110, '1001-*', { role: 'internal', stage: 1, color: C.blue });
+    out += arrow(420, 73, 245, 110, '1000-0', { role: 'internal', stage: 1, color: C.blue });
+    out += arrow(540, 73, 715, 110, '1001-0', { role: 'internal', stage: 1, color: C.blue });
     out += box(80, 125, 330, 110, 'listpack', ['1000-0: job → A', '1000-1: job → B'], { key: 'stream-leaf-a', pass: 1, code: true, size: 16 });
     out += box(550, 125, 330, 110, 'listpack', ['1001-0: job → C', L(lang, 'packed entries', 'плотно упакованные записи')], { key: 'stream-leaf-b', pass: 1, code: true, size: 16 });
     return out + note(L(lang, 'The radix tree finds an ID range; a listpack stores its entries.', 'Radix tree находит диапазон ID; listpack хранит его записи.'));
   }
-  let out = text(30, 25, 'stream: jobs', { size: 17 });
-  ['1000-0', '1000-1', '1001-0'].forEach((id, i) => { out += chip(30 + i * 220, 45, 195, `${id} · job:${i + 1}`, { key: `stream-entry-${i}`, motion: s === 0 ? 'change' : 'context', size: 14 }); });
+  let out = text(30, 25, 'stream: orders', { size: 17 });
+  out += chip(30, 45, 635, '1000-0 · order:42', { key:'stream-entry-0',motion:s===0?'change':'context',size:16 });
   out += box(710, 20, 225, 108, 'PEL', [s <= 1 || s === 3 ? '∅' : `1000-0 → ${s === 4 ? 'B' : 'A'}`, L(lang, s <= 1 ? 'no group yet' : s === 3 ? 'acknowledged' : 'pending delivery', s <= 1 ? 'группы ещё нет' : s === 3 ? 'подтверждено' : 'ожидает ACK')], { key: 'stream-pending', active: s >= 2, pass: s === 4 ? 1 : 0, previousUntil: s === 4 ? 0 : undefined, code: true, size: 14 });
   if (s === 4) out += text(726, 77, ['1000-0 → A', L(lang, 'pending delivery', 'ожидает ACK')], { key: 'stream-pending-before-claim', motion: 'change', stage: 2, pass: 0, transient: true, size: 14, leading: 19 });
-  out += endpoint(30, 142, L(lang, 'Consumer A', 'Обработчик A'), s === 0 ? 'XADD jobs * job A' : s === 1 ? 'XREAD STREAMS jobs 0' : s === 3 ? 'XACK jobs g 1000-0' : s === 4 ? L(lang, 'stopped before ACK', 'сбой до ACK') : 'XREADGROUP → 1000-0', s === 1 || s === 2, s === 4 ? C.muted : C.green);
+  out += endpoint(30, 142, L(lang, 'Consumer A', 'Обработчик A'), s === 0 ? 'XADD orders * order 42' : s === 1 ? 'XREAD STREAMS orders 0' : s === 3 ? 'XACK orders workers 1000-0' : s === 4 ? L(lang, 'stopped before ACK', 'сбой до ACK') : 'XREADGROUP → 1000-0', s === 1 || s === 2, s === 4 ? C.muted : C.green);
   out += endpoint(570, 142, L(lang, 'Consumer B', 'Обработчик B'), s === 4 ? 'XAUTOCLAIM → 1000-0' : 'XREADGROUP', s === 4, C.green);
   if (s === 0) out += arrow(125, 127, 125, 94, 'XADD', { role: 'request' });
   if (s === 1 || s === 2) out += arrow(155, 127, 155, 94, s === 1 ? 'XREAD' : 'XREADGROUP', { key: 'stream-read-request', role: 'request' });
@@ -450,12 +477,12 @@ function specialized(s, lang) {
   const names = ['JSON', L(lang, 'Search', 'Поиск'), L(lang, 'Vectors', 'Векторы'), L(lang, 'Time series', 'Ряды времени'), 'Bitmap / Geo', L(lang, 'Probabilistic', 'Вероятностные')];
   let out = text(480, 28, names[s], { anchor: 'middle', size: 20 });
   if (s === 0) {
-    out += chip(380, 60, 200, 'user', { motion: 'context' });
+    out += chip(380, 60, 200, 'user:1', { motion: 'context' });
     out += arrow(425, 107, 245, 157, 'name', { role: 'internal', color: C.blue });
     out += arrow(535, 107, 715, 157, 'age', { role: 'internal', color: C.blue });
     out += chip(100, 178, 300, 'name: "Alice"', { key: 'json-name' });
-    out += chip(560, 178, 300, 'age: 30', { key: 'json-age' });
-    out += text(480, 255, '$.user.age → 30', { key: 'json-result', motion: 'change', stage: 2, anchor: 'middle', size: 18 });
+    out += chip(560, 178, 300, 'age: 31', { key: 'json-age' });
+    out += text(480, 255, '$.age: 30 → 31', { key: 'json-result', motion: 'change', stage: 2, anchor: 'middle', size: 18 });
   } else if (s === 1) {
     out += chip(80, 105, 230, '"redis"', { motion: 'context' });
     out += arrow(330, 122, 490, 122, L(lang, 'lookup', 'поиск'), { role: 'internal', color: C.blue });
@@ -468,9 +495,10 @@ function specialized(s, lang) {
     out += arrow(460, 132, 515, 150, '', { role: 'internal', color: C.blue });
     out += text(480, 268, L(lang, 'HNSW / FLAT → candidates → nearest neighbors', 'HNSW / FLAT → кандидаты → ближайшие соседи'), { anchor: 'middle', size: 17 });
   } else if (s === 3) {
-    out += `<path d="M100 225 H635 M100 225 V65" fill="none" stroke="${C.ink}" stroke-width="1"/><path d="M110 200 L210 170 L310 185 L410 110 L510 130 L610 80" fill="none" stroke="${C.server}" stroke-width="2"/>`;
+    out += `<path d="M100 225 H635 M100 225 V65" fill="none" stroke="${C.ink}" stroke-width="1"/><path d="M150 150 L300 125 L450 200 L600 100" fill="none" stroke="${C.server}" stroke-width="2"/>`;
+    [[150,150,21],[300,125,22],[450,200,19],[600,100,23]].forEach(([x,y,value])=>{out+=text(x,y-10,String(value),{size:14,anchor:'middle'});});
     out += arrow(650, 140, 725, 140, 'AVG', { role: 'internal', color: C.blue });
-    out += chip(745, 123, 150, '24.3', { key: 'timeseries-average', size: 19 });
+    out += chip(745, 123, 150, '21.25', { key: 'timeseries-average', size: 19 });
     out += text(480, 270, L(lang, 'Timestamped chunks → range aggregation', 'Чанки с временными метками → агрегация диапазона'), { anchor: 'middle', size: 17 });
   } else if (s === 4) {
     Array.from('10100100').forEach((bit, i) => { out += chip(100 + i * 96, 78, 80, bit, { key: `bitmap-bit-${i}`, color: bit === '1' ? C.blue : C.ink }); });
@@ -545,7 +573,7 @@ function compactScene(id, s, lang) {
       if (s >= 1) out += arrow(210, 96, 210, 108, '', { key: 'request-buffer-transfer', role: 'internal', stage: 1, color: s <= 3 ? C.red : C.line });
       if (s >= 1) out += box(40, 118, 340, 70, t('Input buffer', 'Входной буфер'), [s === 2 ? t('ends at Ali → need ce', 'обрыв на Ali → нужны ce') : s >= 3 ? t('3 complete arguments', '3 полных аргумента') : '*3 · $3 · SET · …'], { key: 'request-buffer', active: s >= 1 && s <= 3, size: 14, titleSize: 16, code: true });
       if (s >= 3) out += arrow(210, 196, 210, 208, '', { key: 'request-parser-transfer', role: s === 5 ? 'reply' : 'internal', stage: 1, color: s >= 3 ? s === 5 ? C.green : C.red : C.line });
-      if (s >= 3) out += box(40, 218, 340, 70, s === 5 ? t('Output buffer', 'Выходной буфер') : s === 4 ? t('Command checks', 'Проверки команды') : t('RESP parser', 'Разбор RESP'), [s === 5 ? '+OK\\r\\n' : s === 4 ? t('arity · ACL · type', 'аргументы · ACL · тип') : s < 3 ? t('need complete arguments', 'нужны полные аргументы') : 'SET user:1 Alice'], { key: 'request-parser', active: s >= 4, size: 14, titleSize: 16, code: true });
+      if (s >= 3) out += box(40, 218, 340, 70, s === 5 ? t('Output buffer', 'Выходной буфер') : s === 4 ? t('Command checks', 'Проверки команды') : t('RESP parser', 'Разбор RESP'), [s === 5 ? '+OK\\r\\n' : s === 4 ? t('arity · ACL · state', 'аргументы · ACL · режим') : s < 3 ? t('need complete arguments', 'нужны полные аргументы') : 'SET user:1 Alice'], { key: 'request-parser', active: s >= 4, size: 14, titleSize: 16, code: true });
       return out + mNote(t(s === 2 ? 'Incomplete commands do not execute.' : 'TCP chunks are not RESP boundaries.', s === 2 ? 'Неполная команда пока не исполняется.' : 'Границы TCP и RESP различаются.'));
     }
     case 'event-loop': {
@@ -586,7 +614,7 @@ function compactScene(id, s, lang) {
         out += text(210, 268, t('linked compact blocks', 'связанные компактные блоки'), { anchor: 'middle', size: 14 });
       } else {
         const compact = s === 2 ? ['intset / listpack', '[ 2, 5, 8, 13 ]'] : s === 3 ? ['listpack', 'name | Alice | age | 30'] : s === 4 ? ['listpack', 'Alice: 10 | Bob: 20'] : ['listpack / intset', t('compact entries', 'плотные записи')];
-        const expanded = s === 2 ? ['hashtable', '"apple" → ∅'] : s === 3 ? ['hashtable', 'name → "Alice"'] : s === 4 ? ['skiplist + hashtable', '10 → 20 → 35'] : ['hashtable / skiplist', t('more entries / larger values', 'больше записей / крупнее значения')];
+        const expanded = s === 2 ? ['hashtable', '2 · 5 · 8 · 13 · …'] : s === 3 ? ['hashtable', 'name → "Alice"'] : s === 4 ? ['skiplist + hashtable', '10 → 20 → 35'] : ['hashtable / skiplist', t('more entries / larger values', 'больше записей / крупнее значения')];
         out += box(40, 67, 340, 84, compact[0], [compact[1]], { size: 14, titleSize: 16, code: true });
         out += arrow(210, 163, 210, 191, '', { color: C.blue, role: 'internal', stage: 1 });
         out += box(40, 203, 340, 84, expanded[0], [expanded[1]], { active: true, size: 14, titleSize: 16, code: true });
@@ -611,17 +639,17 @@ function compactScene(id, s, lang) {
     }
     case 'transactions': {
       if (s === 2 || s === 3) {
-        out += mCircle(80, 40, 'A', 'WATCH balance', { color: C.green });
-        out += mCircle(340, 40, 'B', s === 3 ? 'SET balance 200' : '—', { color: C.green });
-        out += mCell(35, 133, 350, s === 3 ? 'balance = 200 · v2' : 'balance = 100 · v1', { active: true });
+        out += mCircle(80, 40, 'A', 'WATCH count', { color: C.green });
+        out += mCircle(340, 40, 'B', s === 3 ? 'INCR count' : '—', { color: C.green });
+        out += mCell(35, 133, 350, s === 3 ? 'count = 1 · A dirty' : 'count = 0 · WATCH active', { active: true });
         out += arrow(210, 177, 210, 206, '', { color: C.blue });
-        out += mCell(35, 220, 350, s === 3 ? 'EXEC → (nil)' : 'GET balance → "100"', { color: s === 3 ? '#b44c34' : C.green });
+        out += mCell(35, 220, 350, s === 3 ? 'EXEC → (nil)' : 'GET count → "0"', { color: s === 3 ? '#b44c34' : C.green });
       } else {
         out += text(210, 29, s === 0 ? t('MULTI → queue', 'MULTI → очередь') : 'EXEC', { anchor: 'middle', size: 18, bold: true });
-        out += mCell(35, 76, 350, 'SET balance 100', { color: s === 1 || s === 4 ? C.green : undefined });
-        out += mCell(35, 127, 350, s === 4 ? 'LPUSH balance x → WRONGTYPE' : s === 5 ? 'SET only-key → ERR' : 'INCR balance', { color: s >= 4 ? '#b44c34' : undefined });
+        out += mCell(35, 76, 350, s === 4 ? 'SET a text → OK' : s === 5 ? 'MULTI' : 'SET a 1', { color: s === 1 || s === 4 ? C.green : undefined });
+        out += mCell(35, 127, 350, s === 4 ? 'INCR a → ERR integer' : s === 5 ? 'SET a → ERR' : 'INCR b', { color: s >= 4 ? '#b44c34' : undefined });
         out += arrow(210, 173, 210, 205, '', { color: C.blue });
-        out += mCell(35, 220, 350, s === 0 ? 'QUEUED' : s === 5 ? t('EXECABORT · no writes', 'EXECABORT · без записей') : s === 4 ? 'balance = "100"' : 'balance = "101"', { active: true });
+        out += mCell(35, 220, 350, s === 0 ? 'QUEUED' : s === 5 ? t('EXECABORT · no writes', 'EXECABORT · без записей') : s === 4 ? 'SET b 2 → OK' : 'a = 1 · b = 1', { active: true });
       }
       out += arrow(20, 65, 20, 115, '', { key: 'transaction-request', role: 'request' });
       out += arrow(400, 240, 400, 190, '', { key: 'transaction-result', role: 'reply', color: C.green });
@@ -630,27 +658,38 @@ function compactScene(id, s, lang) {
     case 'scripting': {
       out += mCircle(65, 35, 'A', s === 4 ? 'FCALL' : s === 3 ? 'EVALSHA' : 'EVAL', { color: C.green, r: 24 });
       out += mCircle(355, 35, 'B', t('waits', 'ждёт'), { color: C.green, r: 24 });
-      const lines = s === 3 ? ['EVAL → SHA1', t('EVALSHA → cached script', 'EVALSHA → кеш скрипта'), t('NOSCRIPT → load again', 'NOSCRIPT → загрузить заново')] : s === 4 ? ['FUNCTION LOAD', 'FCALL update 1 count', 'INCR + EXPIRE'] : ['INCR count', 'EXPIRE count 60', s === 2 ? 'error("oops")' : s === 5 ? t('long loop …', 'долгий цикл …') : 'return count'];
+      const lines = s === 3 ? ['SCRIPT LOAD → SHA1', t('EVALSHA → cached script', 'EVALSHA → кеш скрипта'), t('NOSCRIPT → load again', 'NOSCRIPT → загрузить заново')] : s === 4 ? ['FUNCTION LOAD', 'FCALL hello 0', 'return "hello"'] : s === 2 ? ['SET a 1', 'error("stop")', 'a = 1'] : ['INCR visits', 'if n == 1: EXPIRE visits 60', s === 5 ? 'long loop … → BUSY' : 'return n'];
       out += text(210, 107, t('Redis · executor', 'Redis · исполнитель'), { anchor: 'middle', size: 16, bold: true });
       lines.forEach((v, i) => { out += mCell(35, 132 + i * 48, 350, v, { active: i === (s === 1 ? 1 : s === 2 || s === 5 ? 2 : 0), color: s === 2 && i === 2 ? '#b44c34' : undefined }); });
       out += arrow(80, 104, 120, 119, '', { key: 'script-request', role: 'request' });
-      if (s !== 5) out += arrow(305, 119, 345, 104, s === 2 ? 'ERR' : ':1', { key: 'script-reply', role: 'reply', color: C.green });
-      return out + mNote(t(s === 2 ? 'Earlier writes survive a script error.' : s === 5 ? 'The long loop keeps other commands waiting.' : s === 3 ? 'The cache may be missing: handle NOSCRIPT.' : 'Another client cannot interleave commands.', s === 2 ? 'Ранние записи остаются после ошибки.' : s === 5 ? 'Долгий цикл задерживает другие команды.' : s === 3 ? 'Кеш может исчезнуть: обработать NOSCRIPT.' : 'Другой клиент не вклинит свои команды.'));
+      if (s !== 5) out += arrow(305, 119, 345, 104, s === 2 ? 'ERR' : s === 3 ? '"Alice"' : s === 4 ? '"hello"' : ':1', { key: 'script-reply', role: 'reply', color: C.green, labelX: 365 });
+      return out + mNote(t(s === 2 ? 'Earlier writes survive a script error.' : s === 5 ? 'After the threshold: BUSY, not automatic termination.' : s === 3 ? 'The cache may be missing: handle NOSCRIPT.' : 'Another client cannot interleave commands.', s === 2 ? 'Ранние записи остаются после ошибки.' : s === 5 ? 'После порога: BUSY, без автоматической остановки.' : s === 3 ? 'Кеш может исчезнуть: обработать NOSCRIPT.' : 'Другой клиент не вклинит свои команды.'));
     }
     case 'blocking': {
       out += mCircle(70, 39, 'A', s === 4 || s === 5 ? 'BLPOP jobs 0' : 'BLPOP jobs 5', { color: C.green });
-      out += mCircle(350, 39, 'B', s === 2 ? 'RPUSH … task:1' : s === 4 ? 'BLPOP jobs 0' : 'GET other', { color: C.green, active: s === 1 });
+      out += mCircle(350, 39, 'B', s === 2 ? 'RPUSH … task:1' : s === 4 ? 'BLPOP jobs 0' : 'GET user:1', { color: C.green, active: s === 1 });
       out += text(210, 135, 'Redis · jobs', { anchor: 'middle', bold: true, size: 17 });
       out += mCell(60, 164, 300, s === 2 ? '[ "task:1" ] → A' : '[ ]', { active: s === 2, size: 18, h: 44 });
       out += mCell(25, 254, 370, s === 2 ? t('A resumes with task:1', 'A получает task:1') : s === 3 ? t('timeout → (nil)', 'таймаут → (nil)') : s === 4 ? t('waiters: A → B', 'ожидают: A → B') : s === 5 ? t('A crashed after pop · jobs = [ ]', 'A упал после pop · jobs = [ ]') : t('A is parked · executor is free', 'A ждёт · исполнитель свободен'), { color: s === 2 ? C.green : C.muted });
       if (s === 0) out += arrow(90, 113, 150, 150, 'BLPOP', { role: 'request' });
-      if (s === 1) out += arrow(330, 113, 270, 150, 'GET', { role: 'request' }) + arrow(270, 174, 330, 145, '"Alice"', { role: 'reply', color: C.green });
+      if (s === 1) out += arrow(330, 113, 270, 150, 'GET', { role: 'request' }) + arrow(270, 174, 330, 145, '"Alice"', { role: 'reply', color: C.green, labelX: 335 });
       if (s === 3) out += arrow(150, 174, 90, 145, '(nil)', { role: 'reply', color: C.green });
-      if (s === 1) out += text(210, 232, 'B: GET other → \"v\"', { anchor: 'middle', size: 14, color: C.blue });
+      if (s === 1) out += text(210, 232, 'B: GET user:1 → \"Alice\"', { anchor: 'middle', size: 14, color: C.blue });
       if (s === 2) out += arrow(350, 111, 350, 150, 'RPUSH', { role: 'request', color: C.red }) + arrow(150, 174, 90, 145, 'task:1', { role: 'reply', color: C.green });
       return out + mNote(t(s === 5 ? 'A list pop has no acknowledgement step.' : 'Waiting for a list parks only that client.', s === 5 ? 'У pop из списка нет шага подтверждения.' : 'Ожидание списка паркует только клиента.'));
     }
     case 'locks': {
+      if(s===3||s===5){
+        const fenced=s===5;
+        out+=mCircle(75,42,'A',fenced?'write(fence=41)':'write(resource)',{color:C.green});
+        if(!fenced)out+=mCircle(345,42,'B','write(resource)',{color:C.green});
+        out+=mCell(30,165,360,t('External resource','Внешний ресурс'),{key:'lock-external-resource',active:true});
+        out+=mCell(30,226,360,fenced?'highest fence = 42':t('A and B can both write','A и B могут писать'));
+        out+=arrow(75,115,175,150,fenced?'41':'write',{key:'lock-external-a',role:'request'});
+        if(!fenced)out+=arrow(345,115,245,150,'write',{key:'lock-external-b',role:'request'});
+        if(fenced)out+=arrow(175,205,75,145,t('rejected','отклонено'),{key:'lock-fenced-reply',role:'reply',color:C.green});
+        return out+mNote(t(fenced?'Fencing is enforced by the external resource.':'A expires but can resume later.',fenced?'Fencing проверяет внешний ресурс.':'Срок A истёк, но A может проснуться.'));
+      }
       out += mCircle(75, 42, 'A', s >= 3 ? t('old token-A', 'старый token-A') : 'token-A', { color: C.green });
       out += mCircle(345, 42, 'B', 'token-B', { color: C.green });
       if (s === 2) out += mCell(45, 142, 330, 'lock → ∅', { key: 'lock-expired', pass: 0, transient: true, size: 17, h: 42 });
@@ -670,7 +709,7 @@ function compactScene(id, s, lang) {
         out += mCircle(75, 90, 'P', 'Primary', { r: 31 });
         out += mCircle(345, 90, 'R', t('Replica', 'Реплика'), { r: 31 });
         out += mCell(15, 215, 180, 'session → ∅', { key: 'expiry-primary', pass: 0 });
-        out += arrow(121, 90, 299, 90, 'DEL session', { key: 'expiry-propagation', role: 'sync', color: C.blue });
+        out += arrow(121, 90, 299, 90, 'DEL / UNLINK', { key: 'expiry-propagation', role: 'sync', color: C.blue });
         out += mCell(225, 215, 180, 'session → ∅', { key: 'expiry-replica', pass: 1 });
         return out + mNote(t('Delete on primary, then on replica.', 'Удалить в primary, затем в реплике.'));
       }
@@ -704,7 +743,7 @@ function compactScene(id, s, lang) {
       if (s === 1 || s === 2) out += arrow(210, 102, 210, 121, t('sample', 'выборка'), { role: 'internal', color: C.blue });
       if (s === 5) out += text(210, 284, [t('DEL: remove + free', 'DEL: удалить + освободить'), t('UNLINK: remove → lazyfree', 'UNLINK: удалить → lazyfree')], { size: 14, anchor: 'middle', leading: 20 });
       if (s === 3) out += arrow(30, 190, 150, 190, 'SET', { role: 'request' }) + arrow(390, 190, 270, 190, 'OOM', { role: 'reply', color: C.green });
-      return out + mNote(t(s === 5 ? 'UNLINK defers memory reclamation.' : 'Eviction uses approximate candidates.', s === 5 ? 'UNLINK откладывает освобождение памяти.' : 'Кандидат вытеснения выбирается примерно.'));
+      return out + mNote(t(s === 5 ? 'For this large container, UNLINK defers reclamation.' : 'Eviction uses approximate candidates.', s === 5 ? 'Для этого большого контейнера UNLINK откладывает освобождение.' : 'Кандидат вытеснения выбирается примерно.'));
     }
     case 'latency': {
       if (s === 5) {
@@ -722,47 +761,59 @@ function compactScene(id, s, lang) {
         for (let i = 0; i < 3; i++) { out += arrow(50, 60 + i * 69, 370, 82 + i * 69, `GET ${['a', 'b', 'c'][i]}`); out += arrow(370, 98 + i * 69, 50, 119 + i * 69, '', { color: C.green }); }
       } else if (s === 1) {
         out += arrow(50, 66, 370, 93, 'GET a · GET b · GET c');
-        out += mCell(80, 142, 260, t('one round trip', 'один сетевой обмен'), { color: C.blue });
+        out += mCell(80, 142, 260, t('shared network wait', 'общее сетевое ожидание'), { color: C.blue });
         out += arrow(370, 225, 50, 256, 'a · b · c', { color: C.green });
       } else {
-        out += arrow(50, 67, 370, 93, s === 3 ? 'SCAN 0 COUNT 100' : s === 4 ? 'GET big:value' : s === 5 ? 'SLOWLOG GET' : 'EVAL …');
+        out += arrow(50, 67, 370, 93, s === 3 ? 'SCAN 0 COUNT 100' : s === 4 ? 'GET large:blob' : s === 5 ? 'SLOWLOG GET' : 'KEYS user:*');
         out += box(75, 137, 270, 92, s === 3 ? t('cursor → 84 → … → 0', 'курсор → 84 → … → 0') : s === 4 ? t('Output buffer', 'Выходной буфер') : s === 5 ? 'INFO · SLOWLOG' : t('Executor busy', 'Исполнитель занят'), [s === 4 ? t('[reply][reply][reply]', '[ответ][ответ][ответ]') : s === 3 ? t('repeat cursor calls', 'повторять с курсором') : s === 5 ? t('measure the delay', 'измерить задержку') : t('short commands wait', 'короткие команды ждут')], { size: 14, titleSize: 14, active: true, code: true });
         out += arrow(370, 253, 50, 275, t('reply', 'ответ'), { color: C.green });
       }
       return out + mNote(t(s === 1 ? 'Pipelining saves network waits.' : 'Network and execution both take time.', s === 1 ? 'Pipeline сокращает сетевые ожидания.' : 'И сеть, и исполнение занимают время.'));
     }
     case 'rdb': {
+      const childActive = s >= 1 && s <= 3;
       out += text(95, 25, t('Parent', 'Родитель'), { size: 16, anchor: 'middle', bold: true });
-      out += text(325, 25, t('Child', 'Потомок'), { size: 16, anchor: 'middle', bold: true });
+      out += text(325, 25, t(childActive ? 'Child' : 'No child', childActive ? 'Потомок' : 'Нет потомка'), { size: 16, anchor: 'middle', bold: true });
       for (let i = 0; i < 3; i++) {
-        out += mCell(20, 65 + i * 55, 150, `${i + 1}: ${i === 1 && s >= 2 ? 'Bob' : 'Alice'}`, { color: i === 1 && s >= 2 ? C.green : undefined });
-        if (s >= 1) out += mCell(250, 65 + i * 55, 150, `${i + 1}: Alice`, { color: C.blue, role: 'internal', stage: 1 });
-        if (s >= 1 && (s < 2 || i !== 1)) out += arrow(182, 81 + i * 55, 238, 81 + i * 55, '', { color: s === 1 ? C.blue : C.line, role: 'internal', stage: 1 });
+        const changed = i === 1 && s >= 2 && s < 5;
+        out += mCell(20, 65 + i * 55, 150, `${i + 1}: ${changed ? 'Bob' : 'Alice'}`, { key: `rdb-parent-${i}`, color: changed ? C.green : undefined });
+        if (childActive) out += mCell(250, 65 + i * 55, 150, `${i + 1}: Alice`, { key: `rdb-child-${i}`, color: C.blue });
+        if (childActive && (s < 2 || i !== 1)) out += arrow(182, 81 + i * 55, 238, 81 + i * 55, '', { color: s === 1 ? C.blue : C.line, role: 'internal' });
       }
       if (s === 2) out += arrow(182, 136, 238, 136, 'COW', { key: 'rdb-copy', role: 'internal', color: C.blue });
       if (s === 3) out += arrow(325, 222, 260, 240, '', { key: 'rdb-write', role: 'internal', color: C.blue });
       if (s === 5) out += arrow(210, 240, 95, 212, 'load RDB', { key: 'rdb-recovery', role: 'internal', color: C.blue });
-      if (s >= 2) out += text(210, 142, 'COW', { size: 14, anchor: 'middle', color: C.green });
       out += mCell(65, 250, 290, s === 5 ? t('restart → user:1 = Alice', 'перезапуск → user:1 = Alice') : s === 3 ? t('dump.rdb → writing Alice', 'dump.rdb → запись Alice') : s === 4 ? t('dump.rdb → complete: Alice', 'dump.rdb → готово: Alice') : s === 0 ? 'RAM: user:1 = Alice' : t('fork → shared pages', 'fork → общие страницы'), { active: s >= 3 });
-      return out + mNote(t(s === 5 ? 'Writes after the snapshot are absent.' : 'A write copies only changed pages.', s === 5 ? 'Записей после снимка здесь нет.' : 'Запись копирует изменяемые страницы.'));
+      return out + mNote(t(s === 5 ? 'Writes after the snapshot are absent.' : 'A write copies changed shared pages.', s === 5 ? 'Записей после снимка здесь нет.' : 'Запись копирует изменяемые общие страницы.'));
     }
     case 'aof': {
       const titles = s >= 4 ? [t('Current data', 'Текущие данные'), t('AOF files', 'Файлы AOF'), t('Recovery', 'Восстановление')] : ['Redis RAM', t('OS page cache', 'Кеш страниц ОС'), t('Storage', 'Накопитель')];
-      const rows = s >= 4 ? [t('fork → new base', 'fork → новая основа'), t('base + incremental + manifest', 'основа + приращения + манифест'), s === 5 ? t('load base → replay incremental', 'основа → проиграть приращения') : t('switch file set', 'сменить набор файлов')] : [s === 3 ? '∅' : t('SET k v · AOF buffer', 'SET k v · буфер AOF'), s === 3 ? '∅' : s >= 1 ? 'write() → SET k v' : '∅', s === 3 ? t('last fsynced prefix', 'префикс после fsync') : s >= 2 ? 'fsync() → SET k v' : '∅'];
-      titles.forEach((name, i) => { out += box(40, 16 + i * 100, 340, 73, name, [rows[i]], { size: 14, titleSize: 16, active: i === Math.min(s, 2), code: true }); if (i < 2) out += arrow(210, 96 + i * 100, 210, 107 + i * 100, '', { color: C.blue, role: 'internal', stage: 1 }); });
-      return out + mNote(t(s === 3 ? 'Power loss discards RAM and OS cache.' : s >= 4 ? 'The manifest selects files for recovery.' : 'write() and fsync() are separate steps.', s === 3 ? 'Без питания исчезнут RAM и кеш ОС.' : s >= 4 ? 'Манифест выбирает файлы восстановления.' : 'write() и fsync() — разные шаги.'));
+      const rows = s >= 4 ? [t('fork → new base', 'fork → новая основа'), t('base + incremental + manifest', 'основа + приращения + манифест'), s === 5 ? t('load base → replay incremental', 'основа → проиграть приращения') : t('publish manifest', 'публикация manifest')] : [s === 3 ? '∅' : t('SET Bob · AOF buffer', 'SET Bob · буфер AOF'), s === 3 ? '∅' : s >= 1 ? 'write() → SET Bob' : '∅', s === 3 ? 'Bob · fsynced' : s >= 2 ? 'fsync() → SET Bob' : '∅'];
+      titles.forEach((name, i) => { out += box(40, 16 + i * 100, 340, 73, name, [rows[i]], { size: 14, titleSize: 16, active: i === Math.min(s, 2), code: true, pass: s === 3 && i < 2 ? 1 : undefined, previousUntil: s === 3 && i < 2 ? 0 : undefined, stateMotion: s === 3 && i === 2 ? 'context' : undefined }); if (i < 2) out += arrow(210, 96 + i * 100, 210, 107 + i * 100, '', { color: C.blue, role: 'internal', stage: 1 }); });
+      if (s === 3) {
+        out += text(56, 73, 'SET Carol · AOF buffer', { key: 'aof-crash-ram', size: 14, motion: 'change', pass: 0, transient: true });
+        out += text(56, 173, 'write() → SET Carol', { key: 'aof-crash-os', size: 14, motion: 'change', pass: 0, transient: true });
+      }
+      return out + mNote(t(s === 3 ? 'Chosen crash: Carol is lost; fsynced Bob survives.' : s >= 4 ? 'The manifest selects files for recovery.' : 'write() and fsync() are separate steps.', s === 3 ? 'Выбранный сбой: Carol потеряна, Bob сохранён.' : s >= 4 ? 'Манифест выбирает файлы восстановления.' : 'write() и fsync() — разные шаги.'));
     }
     case 'replication': {
       out += mCircle(75, 75, 'P', 'Primary', { r: 31 });
       out += mCircle(345, 75, 'R', t('Replica', 'Реплика'), { r: 31 });
-      out += arrow(121, 56, 299, 56, s === 2 ? 'PSYNC' : s === 3 ? t('RDB + stream', 'RDB + поток') : 'SET k v', { key: 'replication-stream', role: 'sync', color: s === 0 ? C.line : C.blue, dashed: s === 0 });
+      if (s < 4) out += arrow(121, 56, 299, 56, s === 2 ? 'CONTINUE 101…120' : s === 3 ? t('RDB + stream', 'RDB + поток') : 'SET k v', { key: 'replication-stream', role: 'sync', motion: s >= 4 ? 'context' : undefined, color: s === 0 ? C.line : C.blue, dashed: s === 0 });
       if (s === 0) out += mCircle(210, 185, 'C', '', { color: C.green, r: 18 }) + arrow(105, 120, 185, 165, '+OK', { role: 'reply', color: C.green });
-      if (s === 2 || s === 3) out += arrow(299, 23, 121, 23, s === 2 ? 'PSYNC' : 'PSYNC ? -1', { role: 'request', color: C.red });
+      if (s === 2 || s === 3) out += arrow(299, 23, 121, 23, s === 2 ? 'PSYNC <id> 101' : 'PSYNC ? -1', { role: 'request', color: C.red });
       if (s >= 4) out += mCircle(210, 185, 'C', '', { color: C.green, r: 18 }) + arrow(185, 165, 105, 120, s === 4 ? 'WAIT' : 'WAITAOF', { role: 'request', color: C.red });
-      out += arrow(299, 96, 121, 96, s === 0 ? 'ACK 100' : 'ACK 120', { key: 'replication-ack', role: 'reply', motion: s === 0 ? 'context' : 'flow', color: C.green });
+      if (s >= 4) {
+        out += arrow(121, 23, 299, 23, 'REPLCONF GETACK *', { key: 'replication-getack', role: 'sync', color: C.blue });
+      }
+      out += arrow(299, 96, 121, 96, s === 5 ? 'ACK 120 · FACK 120' : s === 0 ? 'ACK 100' : 'ACK 120', { key: 'replication-ack', role: s >= 4 ? 'sync' : 'reply', motion: s === 0 ? 'context' : 'flow', color: C.green });
+      if (s >= 4) {
+        out += arrow(60, 120, 190, 205, s === 4 ? ':1' : '[1,1]', { key: 'replication-wait-reply', role: 'reply', color: C.green });
+      }
+      if (s === 5) out += text(210, 220, 'AOF fsync → offset 120', { key: 'replication-fsync', size: 13, anchor: 'middle', motion: 'change', stage: 2, color: C.blue });
       out += text(75, 174, ['k = v', t('offset 120', 'смещение 120')], { anchor: 'middle', size: 14, leading: 22 });
       out += text(345, 174, [s === 0 ? 'k = ∅' : 'k = v', s === 0 ? t('offset 100', 'смещение 100') : t('offset 120', 'смещение 120')], { anchor: 'middle', size: 14, leading: 22 });
-      out += mCell(25, 245, 370, s === 2 ? 'PSYNC → +CONTINUE' : s === 3 ? t('FULLRESYNC → RDB + suffix', 'FULLRESYNC → RDB + приращения') : s === 4 ? 'WAIT 1 1000 → 1' : s === 5 ? 'WAITAOF 1 1 1000 → [1, 1]' : s === 0 ? t('primary OK · replica is behind', 'primary OK · реплика отстаёт') : t('replica applies offset 120', 'реплика применила смещение 120'), { active: true });
+      out += mCell(25, 245, 370, s === 2 ? 'PSYNC → +CONTINUE' : s === 3 ? t('FULLRESYNC → RDB + suffix', 'FULLRESYNC → RDB + приращения') : s === 4 ? 'WAIT 1 1000 → 1' : s === 5 ? 'WAITAOF 1 1 1000 → [1, 1]' : s === 0 ? t('primary OK · replica is behind', 'primary OK · реплика отстаёт') : t('replica applies offset 120', 'реплика применила смещение 120'), { active: true, stage: s >= 4 ? 4 : 2 });
       return out + mNote(t(s === 5 ? 'WAITAOF waits for AOF fsync acknowledgements.' : 'An acknowledgement is not Raft consensus.', s === 5 ? 'WAITAOF ждёт подтверждений fsync AOF.' : 'Подтверждение — ещё не консенсус Raft.'));
     }
     case 'sentinel': {
@@ -780,7 +831,7 @@ function compactScene(id, s, lang) {
         out += arrow(221, 106, 221, 114, '', { key: 'sentinel-address-reply', role: 'reply', color: C.green });
         out += arrow(235, 151, 278, 181, '', { key: 'sentinel-reconnect', motion: 'change', stage: 2, role: 'internal', color: C.blue });
       }
-      if (s === 5) out += node('sentinel-partition', `<path d="M210 139 V285" stroke="${C.ink}" stroke-dasharray="5 5"/>${text(110, 281, 'k = v2', { size: 14, anchor: 'middle' })}${text(310, 281, 'k = v1', { size: 14, anchor: 'middle' })}`, { motion: 'change', stage: 2 });
+      if (s === 5) out += node('sentinel-partition', `<path d="M210 139 V285" stroke="${C.ink}" stroke-dasharray="5 5"/>${text(110, 293, 'k = v2', { size: 14, anchor: 'middle' })}${text(310, 293, 'k = v1', { size: 14, anchor: 'middle' })}`, { motion: 'change', stage: 2 });
       else out += text(210, 294, s === 4 ? t('discover → reconnect to new primary', 'узнать адрес → новый primary') : s >= 3 ? t('replica is promoted', 'реплика повышена') : t('independent failure observations', 'независимые наблюдения за сбоем'), { anchor: 'middle', size: 14 });
       return out + mNote(t(s === 5 ? 'An acknowledged v2 was not replicated.' : 'Detection and election are separate.', s === 5 ? 'Подтверждённая v2 не дошла до реплики.' : 'Обнаружение сбоя и выборы различаются.'));
     }
@@ -797,28 +848,27 @@ function compactScene(id, s, lang) {
       return out + mNote(t(s === 4 ? 'Client retries with ASKING on B.' : s === 3 ? 'Client updates its map and retries on C.' : 'Slot ownership tells the client where to go.', s === 4 ? 'Клиент повторяет с ASKING на B.' : s === 3 ? 'Клиент меняет карту и повторяет на C.' : 'Владелец слота задаёт маршрут клиента.'));
     }
     case 'pubsub': {
-      out += mCircle(210, 40, 'P', 'PUBLISH news hello', { color: C.green, r: 25, active: s === 1 });
-      if (s === 0 || s === 4) out += arrow(100, 221, 165, 188, 'SUBSCRIBE', { key: 'pubsub-subscribe', role: 'request', color: C.red });
-      out += arrow(210, 108, 210, 123, '', { key: 'pubsub-publish', role: 'request', color: s === 0 ? C.line : C.red });
+      const payload=s===3?'next':s===5?'shard:hello':'hello';
+      out += mCircle(210, 40, 'B', `${s===5?'SPUBLISH':'PUBLISH'} news ${payload}`, { color: C.green, r: 25, active: s === 1 });
+      if (s === 0 || s === 4) out += arrow(190, 235, 190, 198, 'SUBSCRIBE', { key: 'pubsub-subscribe', role: 'request', color: C.red, labelX: 105 });
+      out += arrow(210, 108, 210, 123, '', { key: 'pubsub-publish', role: 'request', color: [1,2,3,5].includes(s)?C.red:C.line });
       out += mCircle(210, 167, 'R', s === 5 ? t('shard: news', 'шард: news') : t('channel: news', 'канал: news'), { r: 29 });
-      out += arrow(165, 188, 100, 221, '', { key: 'pubsub-delivery-a', role: 'sync', stage: 1, color: s === 0 || s === 3 ? C.line : C.blue, dashed: s === 3 });
-      out += arrow(255, 188, 320, 221, '', { key: 'pubsub-delivery-b', role: 'sync', stage: 1, color: s === 0 ? C.line : C.blue });
-      out += mCircle(100, 260, 'A', s === 3 ? t('offline', 'отключён') : s >= 4 ? t('new only', 'только новое') : s >= 2 ? '"hello"' : 'SUBSCRIBE', { color: s === 3 ? C.muted : C.green, failed: s === 3 });
-      out += mCircle(320, 260, 'B', s >= 2 ? '"hello"' : 'SUBSCRIBE', { color: C.green });
+      out += arrow(230, 198, 230, 235, '', { key: 'pubsub-delivery-a', role: 'sync', stage: 1, color:s===2||s===5?C.blue:C.line,dashed:s===3 });
+      out += mCircle(210, 260, 'A', '', { color: s === 3 ? C.muted : C.green, failed:s===3 });
+      out += text(210, 305, s===3?t('offline','отключён'):s===4?t('new only','только новое'):s===5?'"shard:hello"':s===2?'"hello"':t('inbox: empty','входящих нет'), {key:'pubsub-inbox',motion:'change',stage:2,pass:s===5?1:0,anchor:'middle',size:14});
       return out + mNote(t(s === 5 ? 'SPUBLISH limits delivery to a shard.' : s >= 3 ? 'A cannot replay a missed message.' : 'Messages go to current subscribers.', s === 5 ? 'SPUBLISH ограничивает доставку шардом.' : s >= 3 ? 'A не может получить пропущенное.' : 'Сообщения идут текущим подписчикам.'));
     }
     case 'streams': {
       if (s === 5) {
         out += mCell(100, 35, 220, 'radix tree · rax', { key: 'stream-index', pass: 0 });
-        out += arrow(170, 82, 110, 123, '1000-*', { role: 'internal', color: C.blue });
-        out += arrow(250, 82, 310, 123, '1001-*', { role: 'internal', color: C.blue });
+        out += arrow(170, 82, 110, 123, '1000-0', { role: 'internal', color: C.blue });
+        out += arrow(250, 82, 310, 123, '1001-0', { role: 'internal', color: C.blue });
         out += box(20, 145, 180, 102, 'listpack', ['1000-0', 'job → A'], { key: 'stream-leaf-a', pass: 1, size: 14, titleSize: 16, code: true });
         out += box(220, 145, 180, 102, 'listpack', ['1001-0', 'job → B'], { key: 'stream-leaf-b', pass: 1, size: 14, titleSize: 16, code: true });
         return out + mNote(t('ID ranges lead to compact entry blocks.', 'Диапазоны ID ведут к компактным блокам.'));
       }
-      out += text(25, 25, 'stream: jobs', { size: 16, bold: true });
-      out += mCell(25, 43, 180, '1000-0 · job:A');
-      out += mCell(215, 43, 180, '1000-1 · job:B');
+      out += text(25, 25, 'stream: orders', { size: 16, bold: true });
+      out += mCell(25, 43, 370, '1000-0 · order:42');
       out += mCell(25, 116, 370, s <= 1 ? t('no consumer group yet', 'группы обработчиков ещё нет') : s === 3 ? 'PEL: ∅ · XACK' : s === 4 ? 'PEL: 1000-0 → B' : 'PEL: 1000-0 → A', { key: 'stream-pending', pass: s === 4 ? 1 : 0, previousUntil: s === 4 ? 0 : undefined, active: s >= 2 });
       if (s === 4) out += mCell(25, 116, 370, 'PEL: 1000-0 → A', { key: 'stream-pending-before-claim', pass: 0, transient: true, active: true });
       out += mCircle(90, 214, 'A', s === 0 ? 'XADD' : s === 1 ? 'XREAD' : s === 3 ? 'XACK' : s === 4 ? t('crashed', 'сбой') : 'XREADGROUP', { color: s === 4 ? C.muted : C.green });
@@ -831,12 +881,12 @@ function compactScene(id, s, lang) {
       const names = ['JSON', t('Search', 'Поиск'), t('Vectors', 'Векторы'), t('Time series', 'Ряды времени'), t('Bitmap / Geo', 'Биты / Гео'), t('Probabilistic', 'Вероятностные')];
       out += text(210, 30, names[s], { size: 18, anchor: 'middle', bold: true });
       if (s === 0) {
-        out += mCell(135, 70, 150, 'user');
+        out += mCell(135, 70, 150, 'user:1', {motion:'context'});
         out += arrow(170, 116, 110, 148, '', { role: 'internal', color: C.blue });
         out += arrow(250, 116, 310, 148, '', { role: 'internal', color: C.blue });
         out += mCell(25, 165, 170, 'name: Alice');
-        out += mCell(225, 165, 170, 'age: 30');
-        out += mCell(25, 247, 370, '$.user.age → 30', { active: true });
+        out += mCell(225, 165, 170, 'age: 31');
+        out += mCell(25, 247, 370, '$.age: 30 → 31', { active: true });
       } else if (s === 1) {
         out += mCell(80, 75, 260, '"redis"');
         out += arrow(210, 121, 210, 162, '', { role: 'internal', color: C.blue });
@@ -849,9 +899,10 @@ function compactScene(id, s, lang) {
         out += `<circle cx="200" cy="148" r="48" fill="none" stroke="${C.blue}" stroke-dasharray="5 4"/>`;
         out += text(210, 295, t('HNSW / FLAT → nearest neighbors', 'HNSW / FLAT → ближайшие соседи'), { size: 14, anchor: 'middle' });
       } else if (s === 3) {
-        out += `<path d="M45 245 H380 M45 245 V70" fill="none" stroke="${C.line}" stroke-width="2"/><path d="M50 210 L110 180 L170 200 L230 130 L290 140 L365 95" fill="none" stroke="${C.red}" stroke-width="3"/>`;
-        out += arrow(365, 95, 365, 60, 'AVG', { role: 'internal', color: C.blue });
-        out += text(210, 290, 't1:24 · t2:25 · t3:24 → AVG', { size: 14, anchor: 'middle' });
+        out += `<path d="M45 245 H380 M45 245 V70" fill="none" stroke="${C.line}" stroke-width="2"/><path d="M70 170 L160 145 L250 220 L340 120" fill="none" stroke="${C.red}" stroke-width="3"/>`;
+        [[70,170,21],[160,145,22],[250,220,19],[340,120,23]].forEach(([x,y,value])=>{out+=text(x,y-10,String(value),{size:14,anchor:'middle'});});
+        out += arrow(365, 120, 365, 60, 'AVG', { role: 'internal', color: C.blue });
+        out += text(210, 290, 'AVG(21, 22, 19, 23) = 21.25', {key:'timeseries-average',motion:'change',stage:2,size:14,anchor:'middle'});
       } else if (s === 4) {
         Array.from('10100100').forEach((bit, i) => { out += mCell(25 + i * 47, 85, 41, bit, { color: bit === '1' ? C.blue : undefined }); });
         out += arrow(210, 135, 210, 163, 'geohash', { role: 'internal', color: C.blue });
