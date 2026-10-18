@@ -22,4 +22,6 @@ Please report any bugs you find or any suggestions you have for how to make thes
 
 2. Apache Kafka ([#4](https://github.com/benbjohnson/thesecretlivesofdata/issues/4)) - *Planning*
 
+3. [Redis Internals / Redis изнутри](redis/) — 21 interactive chapters in English and Russian, with deterministic experiments. See [run and test instructions](redis/README.md).
+
 If you have suggestions for new topics, please submit a new Github issue.
