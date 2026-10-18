@@ -90,7 +90,7 @@ function firstKey(s, lang, compact = false, operation) {
 function request(s, lang, compact = false) {
   const spec = getComposition('request', s, compact);
   const labels = [L(lang, 'TCP socket', 'TCP-сокет'), L(lang, 'Input buffer', 'Входной буфер'), L(lang, 'RESP parser', 'Разбор RESP'), L(lang, 'Command checks', 'Проверки'), L(lang, 'Output buffer', 'Выходной буфер')];
-  const bodies = [L(lang, 'ordered bytes', 'поток байтов'), s === 2 ? 'SET · user:1 · Ali…' : s >= 3 ? 'SET · user:1 · Alice' : '*3 · $3 · SET …', 'SET user:1 Alice', L(lang, 'arity · ACL · state', 'аргументы · ACL · режим'), '+OK\\r\\n'];
+  const bodies = [L(lang, 'ordered bytes', 'поток байтов'), s === 2 ? 'SET user:1 Ali…' : s >= 3 ? 'SET user:1 Alice' : '*3 · $3 · SET …', 'SET user:1 Alice', compact ? L(lang, 'arity · ACL · state', 'аргументы · ACL · режим') : [L(lang, 'arity · ACL', 'аргументы · ACL'), L(lang, 'server state', 'режим сервера')], '+OK\\r\\n'];
   let out = '';
   spec.actors.forEach((a, i) => {
     const w = compact ? 340 : 160, h = compact ? 54 : 110;
