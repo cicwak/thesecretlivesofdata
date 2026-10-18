@@ -1,6 +1,5 @@
 import {chapters} from './content.js';
 import {storyScene} from './scenes.js';
-import {createLab, reduceLab, labView} from './model.js';
 import {messages, localize, chooseLanguage, chapterUrl} from './i18n.js';
 import {Playback} from './playback.js';
 import {sceneAnimations} from './motion.js';
@@ -21,7 +20,6 @@ let stepIndex = 0;
 let rate = 1;
 let autoPaused = false;
 let timelineDuration = 0;
-const labStates = new Map();
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
 const smallViewport = matchMedia('(max-width: 680px)');
 const t = key => messages[lang][key];
@@ -50,7 +48,7 @@ function renderPlaybackState() {
   $('previous').disabled=busy||(chapterIndex===0&&stepIndex===0);
   $('next').disabled=busy;
   $('replay').disabled=busy||reducedMotion.matches;
-  for(const id of ['under','try','zoom'])$(id).disabled=busy;
+  for(const id of ['under','zoom'])$(id).disabled=busy;
   renderPlayButton();
 }
 function beginAnimation({elapsed=0,paused=false}={}) {
@@ -90,25 +88,6 @@ function renderDetails() {
   const evidenceHtml=proof?`<section data-step-evidence="${chapter.id}:${stepIndex}"><h3>${escape(t('stepSources'))}</h3><p>${escape(t('auditNote'))}</p><h4>${escape(t('documentation'))}</h4>${links(proof.docs)}<h4>${escape(t('implementation'))}</h4>${links(proof.code)}<p><a href="audit/README.md" target="_blank" rel="noopener noreferrer">${escape(t('audit'))}</a></p></section>`:'';
   $('detailsBody').innerHTML=`${detail?`<p>${escape(l(detail))}</p>`:''}${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${evidenceHtml}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3>${links(chapter.sources)}`;
 }
-function getLab() {
-  if(!labStates.has(current().id)) labStates.set(current().id,createLab(current().id));
-  return labStates.get(current().id);
-}
-function renderLab() {
-  const view=labView(getLab());
-  const focused=document.activeElement?.dataset?.action;
-  $('experimentTitle').textContent=`${t('practice')} · ${l(current().title)}`;
-  $('labNote').textContent=l(view.note);
-  $('labControls').innerHTML=view.controls.map(control=>control.options?
-    `<label>${escape(l(control.label))}<select data-action="${escape(control.id)}">${control.options.map((option,i)=>`<option value="${escape(option.value)}"${String(control.value??control.selected??control.options[0].value)===String(option.value)?' selected':''}>${escape(l(option.label))}</option>`).join('')}</select></label>`:
-    `<button type="button" class="button" data-action="${escape(control.id)}"${control.disabled?' disabled':''}>${escape(l(control.label))}</button>`).join('');
-  $('labPanels').innerHTML=view.panels.map(panel=>`<section class="lab-panel"><h3>${escape(l(panel.title))}</h3><dl>${panel.rows.map(row=>`<div class="lab-row ${['active','good','bad','muted'].includes(row.status)?row.status:''}"><dt>${escape(l(row.label))}</dt><dd>${escape(l(row.value))}</dd></div>`).join('')}</dl></section>`).join('');
-  $('eventsTitle').textContent=t('events');
-  $('labEvents').innerHTML=view.events.length?view.events.map(e=>`<li>${escape(l(e))}</li>`).join(''):`<li class="muted">${escape(t('noEvents'))}</li>`;
-  $('labEvents').scrollTop=$('labEvents').scrollHeight;
-  $('reset').textContent=t('reset'); $('labDisclaimer').textContent=t('modelDetail');
-  if(focused) $('labControls').querySelector(`[data-action="${CSS.escape(focused)}"]`)?.focus();
-}
 function render({animate=false}={}) {
   document.documentElement.lang=lang;
   document.querySelector('meta[name="description"]').content=t('description');
@@ -130,13 +109,13 @@ function render({animate=false}={}) {
   $('stepCounter').setAttribute('aria-label',`${t('step')} ${stepIndex+1} ${t('of')} ${current().steps.length}`);
   $('speed').setAttribute('aria-label',t('speed')); $('speed').title=t('speed');
   $('speed').disabled=reducedMotion.matches;
-  $('under').textContent=t('under'); $('try').textContent=t('practice');
+  $('under').textContent=t('under');
   $('zoom').textContent=t('zoom'); $('diagramTitle').textContent=l(current().steps[stepIndex].title);
   $('panHint').textContent=t('pan'); $('largeDiagram').innerHTML=storyScene(current().id,stepIndex,lang).replaceAll('scene-arrow-','zoom-arrow-');
   settleDiagram($('largeDiagram'));
   $('motionNotice').hidden=!reducedMotion.matches; $('motionNotice').textContent=t('reduced');
   document.querySelectorAll('.close-dialog').forEach(b=>{b.innerHTML=icon('close',14);b.setAttribute('aria-label',t('close'));});
-  renderDiagram(); renderMenu(); renderDetails(); renderLab(); renderPlaybackState();
+  renderDiagram(); renderMenu(); renderDetails(); renderPlaybackState();
   if(animate) beginAnimation();
 }
 function navigate(index,step=0,push=true) {
@@ -168,13 +147,9 @@ $('speed').addEventListener('change',e=>{rate=Number(e.target.value);playback.se
 document.querySelectorAll('[data-lang]').forEach(button=>button.addEventListener('click',()=>switchLanguage(button.dataset.lang)));
 $('menuButton').addEventListener('click',()=>{$('contents').showModal();});
 $('under').addEventListener('click',()=>{$('details').showModal();});
-$('try').addEventListener('click',()=>{$('experiment').showModal();});
 $('zoom').addEventListener('click',()=>{$('diagramDialog').showModal();});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('chapterLinks').addEventListener('click',e=>{const link=e.target.closest('[data-chapter]');if(!link)return;e.preventDefault();$('contents').close();navigate(chapters.findIndex(c=>c.id===link.dataset.chapter));});
-$('labControls').addEventListener('click',e=>{const control=e.target.closest('button[data-action]');if(!control)return;labStates.set(current().id,reduceLab(getLab(),control.dataset.action));renderLab();});
-$('labControls').addEventListener('change',e=>{if(!e.target.matches('select[data-action]'))return;labStates.set(current().id,reduceLab(getLab(),e.target.dataset.action,e.target.value));renderLab();});
-$('reset').addEventListener('click',()=>{labStates.set(current().id,createLab(current().id));renderLab();});
 document.addEventListener('keydown',e=>{
   if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('dialog,select,input,textarea,[contenteditable]'))return;
   if(e.key==='ArrowRight'){e.preventDefault();next();}
