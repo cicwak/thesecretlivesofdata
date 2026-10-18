@@ -2,6 +2,12 @@
  * They illustrate the current story step; no Redis server is contacted. */
 // The vocabulary follows the Raft illustration: plain circles, black outlines,
 // monospace labels, square log entries and colored messages on a white canvas.
+import { composeActors, getComposition, actorMarkup } from './composition.js';
+import { resolveBeat, storyLength } from './beats.js';
+
+let identityCounts = Object.create(null);
+const identity = kind => `${kind}-${identityCounts[kind] = (identityCounts[kind] || 0) + 1}`;
+
 const C = { ink: '#000000', muted: '#777777', line: '#d9dfdf', red: '#ff0000', green: '#008000', blue: '#0000ff', server: '#4682b4', pale: '#f5f5f5', white: '#fff' };
 const E = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const L = (lang, en, ru) => lang === 'ru' ? ru : en;
@@ -13,7 +19,7 @@ function text(x, y, lines, opt = {}) {
   const rows = Array.isArray(lines) ? lines : [lines];
   const size = opt.size || 17;
   const body = `<text x="${x}" y="${y}" text-anchor="${opt.anchor || 'start'}" fill="${opt.color || C.ink}" font-family="Courier New, Courier, monospace" font-size="${size}" font-weight="${opt.bold ? 600 : 400}" class="${opt.code ? 'scene-code' : 'scene-label'}">${rows.map((r, i) => `<tspan x="${x}" dy="${i ? opt.leading || size + 7 : 0}">${E(r)}</tspan>`).join('')}</text>`;
-  return opt.motion ? node(opt.key || `label-${x}-${y}`, body, opt) : body;
+  return opt.motion ? node(opt.key || identity('label'), body, opt) : body;
 }
 function box(x, y, w, h, title, body = [], opt = {}) {
   const size = opt.size || 16, max = Math.floor((w - 32) / (size * 0.61));
@@ -23,37 +29,30 @@ function box(x, y, w, h, title, body = [], opt = {}) {
     for (const word of String(row).split(' ')) { if ((current + ' ' + word).trim().length > max && current) { lines.push(current); current = word; } else current += (current ? ' ' : '') + word; }
     lines.push(current);
   }
-  const key = opt.key || `structure-${x}-${y}`;
+  const key = opt.key || identity('panel');
   const content = lines.length ? text(x + 16, y + 57, lines, { size, leading: size + 5, code: opt.code, color: opt.bodyColor, key: `${key}-value`, motion: opt.stateMotion || (body.length ? 'change' : 'context'), stage: opt.stage ?? 2, pass: opt.pass, previousUntil: opt.previousUntil }) : '';
   return node(key, `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${opt.fill || C.white}" stroke="${C.ink}" stroke-width="${opt.active ? 2 : 1}"${opt.dashed ? ' stroke-dasharray="5 5"' : ''}/>${text(x + 16, y + 29, title, { size: opt.titleSize || 18, color: opt.color })}${content}`, { active: opt.active });
 }
 function chip(x, y, w, label, opt = {}) {
-  return node(opt.key || `entry-${x}-${y}`, `<rect x="${x}" y="${y}" width="${w}" height="${opt.h || 34}" fill="${opt.fill || C.white}" stroke="${C.ink}" stroke-width="${opt.active ? 2 : 1}"/>${text(x + w / 2, y + 23, label, { code: opt.code !== false, size: opt.size || 15, anchor: 'middle', color: opt.color || C.ink })}`, { active: opt.active, motion: opt.motion || 'change', stage: opt.stage, sequence: opt.sequence, transient: opt.transient, previousUntil: opt.previousUntil, pass: opt.pass });
+  return node(opt.key || identity('entry'), `<rect x="${x}" y="${y}" width="${w}" height="${opt.h || 34}" fill="${opt.fill || C.white}" stroke="${C.ink}" stroke-width="${opt.active ? 2 : 1}"/>${text(x + w / 2, y + 23, label, { code: opt.code !== false, size: opt.size || 15, anchor: 'middle', color: opt.color || C.ink })}`, { active: opt.active, motion: opt.motion || 'change', stage: opt.stage, sequence: opt.sequence, transient: opt.transient, previousUntil: opt.previousUntil, pass: opt.pass });
 }
 function arrow(x1, y1, x2, y2, label = '', opt = {}) {
   const color = opt.color || C.red;
   const role = opt.role || (color === C.green ? 'reply' : color === C.blue ? 'sync' : 'request');
   const active = color !== C.line && !opt.dashed;
   const stage = opt.stage ?? (role === 'reply' ? 3 : 1);
-  return node(opt.key || `flow-${x1}-${y1}-${x2}-${y2}`, `<path d="M${x1} ${y1} L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="1.5"${opt.dashed ? ' stroke-dasharray="5 5"' : ''} marker-end="url(#scene-arrow-${color.replace('#', '')})"/>${label ? `<text x="${opt.labelX ?? (x1 + x2) / 2}" y="${opt.labelY ?? (y1 + y2) / 2 - 10}" text-anchor="middle" font-family="Courier New, Courier, monospace" font-size="15" fill="${color === C.line ? C.muted : color}" stroke="white" stroke-width="5" paint-order="stroke">${E(label)}</text>` : ''}`, { flow: true, role, motion: opt.motion || (active ? 'flow' : 'context'), stage, sequence: opt.sequence });
+  return node(opt.key || identity('flow'), `<path d="M${x1} ${y1} L${x2} ${y2}" fill="none" stroke="${color}" stroke-width="1.5"${opt.dashed ? ' stroke-dasharray="5 5"' : ''} marker-end="url(#scene-arrow-${color.replace('#', '')})"/>${label ? `<text x="${opt.labelX ?? (x1 + x2) / 2}" y="${opt.labelY ?? (y1 + y2) / 2 - 10}" text-anchor="middle" font-family="Courier New, Courier, monospace" font-size="15" fill="${color === C.line ? C.muted : color}" stroke="white" stroke-width="5" paint-order="stroke">${E(label)}</text>` : ''}`, { flow: true, role, motion: opt.motion || (active ? 'flow' : 'context'), stage, sequence: opt.sequence });
 }
-function note(label, opt = {}) {
-  const words = String(label).split(' '), lines = [''];
-  for (const word of words) { const last = lines.length - 1; if ((lines[last] + ' ' + word).trim().length > 100 && lines[last]) lines.push(word); else lines[last] += (lines[last] ? ' ' : '') + word; }
-  return text(480, opt.y || (lines.length > 1 ? 277 : 290), lines, { size: opt.size || 14, leading: 19, anchor: 'middle', color: opt.color || C.muted, key: 'scene-caption', motion: 'change', stage: 4 });
-}
-function endpoint(x, y, label, detail, active = false, color = C.green) {
+function note() { return ''; }
+function endpoint(x, y, label, detail, active = false, color = C.green, key = identity('client')) {
   const words = String(detail).split(' '), rows = [''];
   for (const word of words) { const i = rows.length - 1; if ((rows[i] + ' ' + word).trim().length > 24 && rows[i]) rows.push(word); else rows[i] += (rows[i] ? ' ' : '') + word; }
   const mark = /[ABCS][0-9]?$/.test(label) ? label.match(/[ABCS][0-9]?$/)[0] : 'C';
-  return node(`client-${x}-${y}`, `<circle cx="${x + 90}" cy="${y + 29}" r="27" fill="${color === C.muted ? C.muted : C.green}" stroke="${C.ink}" stroke-width="${active ? 2 : 1}"/>${text(x + 90, y + 35, mark, { size: 18, anchor: 'middle', color: C.white })}${text(x + 90, y + 76, label, { size: 14, anchor: 'middle' })}${text(x + 90, y + 100, rows, { size: 14, leading: 18, anchor: 'middle', code: true, key: `client-${x}-${y}-command`, motion: 'change', stage: 0 })}`, { active });
+  return node(key, `<circle cx="${x + 90}" cy="${y + 29}" r="27" fill="${color === C.muted ? C.muted : C.green}" stroke="${C.ink}" stroke-width="${active ? 2 : 1}"/>${text(x + 90, y + 35, mark, { size: 18, anchor: 'middle', color: C.white })}${text(x + 90, y + 76, label, { size: 14, anchor: 'middle' })}${text(x + 90, y + 100, rows, { size: 14, leading: 18, anchor: 'middle', code: true, key: `${key}-command`, motion: 'change', stage: 0 })}`, { active });
 }
-function server(x, y, label, detail, active = false, failed = false) {
+function server(x, y, label, detail, active = false, failed = false, key = identity('server')) {
   const mark = /^[ABC]$/.test(label) ? label : /[Pp]rimary/.test(label) ? 'P' : 'R';
-  return node(`server-${x}-${y}`, `<circle cx="${x}" cy="${y}" r="45" fill="${failed ? '#999999' : C.server}" stroke="${C.ink}" stroke-width="${active ? 3 : 1}"/>${text(x, y + 6, mark, { size: 22, anchor: 'middle', color: C.white })}${failed ? `<path d="M${x-24} ${y-24} L${x+24} ${y+24} M${x+24} ${y-24} L${x-24} ${y+24}" stroke="${C.ink}" stroke-width="2"/>` : ''}${text(x, y + 69, label, { size: 15, anchor: 'middle' })}${text(x, y + 92, detail, { size: 14, anchor: 'middle', key: `server-${x}-${y}-value`, motion: 'change', stage: 2 })}`, { active });
-}
-function dots(x, y, items, active = -1, w = 150) {
-  return items.map((item, i) => text(x + i * (w + 10) + w / 2, y + 24, item, { size: 15, anchor: 'middle', color: i === active ? C.ink : C.muted, bold: i === active })).join('');
+  return node(key, `<circle cx="${x}" cy="${y}" r="45" fill="${failed ? '#999999' : C.server}" stroke="${C.ink}" stroke-width="${active ? 3 : 1}"/>${text(x, y + 6, mark, { size: 22, anchor: 'middle', color: C.white })}${failed ? `<path d="M${x-24} ${y-24} L${x+24} ${y+24} M${x+24} ${y-24} L${x-24} ${y+24}" stroke="${C.ink}" stroke-width="2"/>` : ''}${text(x, y + 69, label, { size: 15, anchor: 'middle' })}${text(x, y + 92, detail, { size: 14, anchor: 'middle', key: `${key}-value`, motion: 'change', stage: 2 })}`, { active });
 }
 const titles = {
   'first-key': ['A key in memory', 'Ключ в памяти'], request: ['A request travels through Redis', 'Путь запроса через Redis'],
@@ -68,34 +67,47 @@ const titles = {
   pubsub: ['Live message delivery', 'Доставка сообщений онлайн'], streams: ['A log and pending work', 'Журнал и ожидающая работа'],
   specialized: ['Structures for specific jobs', 'Структуры для специальных задач']
 };
-function firstKey(s, lang) {
-  let out = endpoint(95, 97, L(lang, 'Client', 'Клиент'), '', s === 0);
-  out += server(765, 126, 'Redis', '', s === 2);
-  const command = s === 4 ? 'GET user:1' : 'SET user:1 Alice';
-  if (s === 5) {
-    out += arrow(250, 106, 690, 106, 'SET user:1 Bob', { key: 'first-key-request-set', sequence: 0, role: 'request' });
-    out += arrow(690, 158, 250, 158, '+OK', { key: 'first-key-reply-set', sequence: 0, role: 'reply', color: C.green });
-    out += text(765, 244, 'user:1 → "Bob"', { key: 'first-key-replacement', motion: 'change', stage: 2, sequence: 0, transient: true, size: 18, anchor: 'middle', code: true });
-    out += arrow(250, 106, 690, 106, 'DEL user:1', { key: 'first-key-request-del', sequence: 1, role: 'request' });
-    out += arrow(690, 158, 250, 158, ':1', { key: 'first-key-reply-del', sequence: 1, role: 'reply', color: C.green });
-    out += text(765, 244, 'user:1 → ∅', { key: 'first-key-value', motion: 'change', stage: 2, sequence: 1, previousUntil: 0, size: 18, anchor: 'middle', code: true });
-  } else {
-    out += arrow(250, 106, 690, 106, command, { key: 'first-key-request', role: 'request', color: C.red });
-    if (s >= 3) out += arrow(690, 158, 250, 158, s === 4 ? '"Alice"' : '+OK', { key: 'first-key-reply', color: C.green, role: 'reply' });
-    out += text(765, 244, s < 2 ? 'user:1 → ∅' : 'user:1 → "Alice"', { key: 'first-key-value', motion: s >= 2 ? 'change' : 'context', stage: 2, size: 18, anchor: 'middle', code: true });
-  }
-  out += text(765, 269, L(lang, 'RAM', 'RAM'), { size: 14, anchor: 'middle', color: C.muted });
-  if (s === 1) out += text(480, 214, L(lang, 'Find user:1 → absent', 'Найти user:1 → нет ключа'), { key: 'first-key-lookup', motion: 'change', stage: 2, anchor: 'middle', size: 16 });
-  return out + note(L(lang, ['A command starts at the client.', 'The server looks for the named key.', 'A key now points to a value in RAM.', 'OK confirms execution on this server.', 'GET reads the value from RAM.', 'Alice → Bob → missing: one named entry changes.'][s], ['Команда начинается у клиента.', 'Сервер ищет ключ с этим именем.', 'Ключ теперь указывает на значение в RAM.', 'OK подтверждает исполнение на этом сервере.', 'GET читает значение из RAM.', 'Alice → Bob → нет ключа: меняется одна запись.'][s]), { y: 305 });
+const placedActor = (actor, body, focus = false) => actorMarkup({ ...actor, x: 0, y: 0 }, body, focus, actor.x, actor.y);
+function firstKey(s, lang, compact = false, operation) {
+  const spec = getComposition('first-key', s, compact);
+  const client = spec.actors.find(a => a.key === 'first-key-client');
+  const redis = spec.actors.find(a => a.key === 'first-key-server');
+  let out = placedActor(client, endpoint(-90, -29, L(lang, 'Client', 'Клиент'), s === 0 ? 'SET user:1 Alice' : '', s === 0, C.green, 'first-key-client'), spec.focal === client.key);
+  if (!redis) return out;
+  let memory = server(0, 0, 'Redis', '', s === 2, false, 'first-key-server');
+  const value = s < 2 ? 'user:1 → ∅' : s === 5 ? operation === 1 ? 'user:1 → ∅' : 'user:1 → "Bob"' : 'user:1 → "Alice"';
+  memory += text(0, 116, value, { key: 'first-key-value', motion: s >= 2 ? 'change' : 'context', stage: 2, sequence: s === 5 ? operation || 0 : undefined, anchor: 'middle', size: compact ? 16 : 18, code: true });
+  memory += text(0, 140, 'RAM', { size: 14, anchor: 'middle', color: C.muted });
+  out += placedActor(redis, memory, spec.focal === redis.key);
+  const requestY = redis.y - 17, replyY = redis.y + 23;
+  const command = s === 4 ? 'GET user:1' : s === 5 ? operation === 1 ? 'DEL user:1' : 'SET user:1 Bob' : 'SET user:1 Alice';
+  const sequence = s === 5 ? operation || 0 : 0;
+  out += arrow(client.x + 47, requestY, redis.x - 65, requestY, command, { key: 'first-key-request', sequence, role: 'request', labelY: requestY - 13 });
+  if (s >= 3) out += arrow(redis.x - 65, replyY, client.x + 47, replyY, s === 4 ? '"Alice"' : s === 5 && operation === 1 ? ':1' : '+OK', { key: 'first-key-reply', sequence, role: 'reply', color: C.green });
+  if (s === 1) out += text((client.x + redis.x) / 2, redis.y + 100, L(lang, 'Find user:1 → absent', 'Найти user:1 → нет ключа'), { key: 'first-key-lookup', motion: 'change', stage: 2, anchor: 'middle', size: compact ? 13 : 16 });
+  return out;
 }
-function request(s, lang) {
+function request(s, lang, compact = false) {
+  const spec = getComposition('request', s, compact);
   const labels = [L(lang, 'TCP socket', 'TCP-сокет'), L(lang, 'Input buffer', 'Входной буфер'), L(lang, 'RESP parser', 'Разбор RESP'), L(lang, 'Command checks', 'Проверки'), L(lang, 'Output buffer', 'Выходной буфер')];
-  const bodies = [[L(lang, 'ordered bytes', 'поток байтов')], [s === 2 ? 'user:1 · Ali…' : s >= 3 ? 'user:1 · Alice' : '*3 · $3 · SET …'], [s < 3 ? L(lang, 'need more bytes', 'нужны ещё байты') : 'SET user:1 Alice'], [L(lang, 'arity · ACL · state', 'аргументы · ACL · режим')], ['+OK\\r\\n']];
-  const stage = [0, 1, 1, 2, 3, 4][s];
-  let out = labels.map((v, i) => i > stage ? '' : box(20 + i * 190, 89, 160, 110, v, bodies[i], { key: `request-part-${i}`, active: i === stage, stateMotion: i === stage ? 'change' : 'context', size: 14, titleSize: 16 })).join('');
-  for (let i = 0; i < stage; i++) out += arrow(183 + i * 190, 143, 202 + i * 190, 143, '', { key: `request-transfer-${i}`, role: s === 5 && i === 3 ? 'reply' : 'internal', stage: 1, color: i === Math.max(0, stage - 1) ? s === 5 ? C.green : C.red : C.line });
-  out += text(480, 239, s === 2 ? '*3 · $3 · SET · $6 · user:1 · $5 · Ali' : s === 3 ? 'ce + \\r\\n → SET user:1 Alice' : '*3 · $3 · SET · $6 · user:1 · $5 · Alice', { key: 'request-frame', motion: 'change', stage: 2, anchor: 'middle', size: 15, code: true });
-  return out + note(L(lang, ['TCP delivers an ordered byte stream.', 'RESP encodes an array of command arguments.', 'The value ends at Ali: this command cannot execute yet.', 'The remaining ce completes the third argument.', 'Redis validates the command before its mutation.', 'The reply is buffered, then written to the socket.'][s], ['TCP доставляет упорядоченный поток байтов.', 'RESP кодирует массив аргументов команды.', 'Значение обрывается на Ali: команду пока нельзя исполнить.', 'Оставшиеся ce завершают третий аргумент.', 'Redis проверяет команду до изменения данных.', 'Ответ попадает в буфер и затем в сокет.'][s]));
+  const bodies = [L(lang, 'ordered bytes', 'поток байтов'), s === 2 ? 'SET · user:1 · Ali…' : s >= 3 ? 'SET · user:1 · Alice' : '*3 · $3 · SET …', 'SET user:1 Alice', L(lang, 'arity · ACL · state', 'аргументы · ACL · режим'), '+OK\\r\\n'];
+  let out = '';
+  spec.actors.forEach((a, i) => {
+    const w = compact ? 340 : 160, h = compact ? 54 : 110;
+    const x = -w / 2, y = -h / 2;
+    const body = node(a.key, `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="black" stroke-width="${i === spec.actors.length - 1 ? 2 : 1}"/>${text(0, y + (compact ? 21 : 31), labels[i], { anchor: 'middle', size: compact ? 15 : 16 })}${text(0, y + (compact ? 43 : 67), bodies[i], { key: `${a.key}-value`, anchor: 'middle', size: compact ? 13 : 14, motion: i === spec.actors.length - 1 ? 'change' : 'context', stage: 2 })}`);
+    out += placedActor(a, body, spec.focal === a.key);
+    if (i) {
+      const previous = spec.actors[i - 1];
+      out += compact ? arrow(a.x, previous.y + h / 2 + 3, a.x, a.y - h / 2 - 3, '', { key: `request-transfer-${i}`, role: 'internal', color: s === 5 ? C.line : i === spec.actors.length - 1 ? C.red : C.line, stage: 1 }) : arrow(previous.x + w / 2 + 3, a.y, a.x - w / 2 - 3, a.y, '', { key: `request-transfer-${i}`, role: 'internal', color: s === 5 ? C.line : i === spec.actors.length - 1 ? C.red : C.line, stage: 1 });
+    }
+  });
+  if (s === 5) {
+    const socket = spec.actors[0], output = spec.actors.at(-1);
+    const path = compact ? `M383 ${output.y} C414 ${output.y} 414 ${socket.y} 383 ${socket.y}` : `M${output.x} 79 C${output.x} 35 ${socket.x} 35 ${socket.x} 79`;
+    out += node('request-socket-reply', `<path d="${path}" fill="none" stroke="${C.green}" stroke-width="1.5" marker-end="url(#scene-arrow-008000)"/>${compact ? '' : text(480, 34, '+OK', { anchor: 'middle', color: C.green, size: 14 })}`, { flow: true, role: 'reply', motion: 'flow', stage: 3 });
+  }
+  return out;
 }
 function eventLoop(s, lang) {
   let out = '';
@@ -124,9 +136,9 @@ function dictionary(s, lang) {
   const oldRows = s >= 5 ? ['0   ∅', '1   ∅', '2   ∅', '3   c'] : ['0   ∅', '1   ∅', '2   user:2 → user:1', '3   c'];
   out += text(100, 91, L(lang, 'Table 0 · 4 buckets', 'Таблица 0 · 4 ячейки'), { bold: true });
   oldRows.forEach((v, i) => { out += chip(100, 106 + i * 34, 280, v, { h: 30, active: i === 2 && s >= 1 && s < 4, color: i === 2 && s >= 1 && s < 4 ? C.red : undefined }); });
-  if (s < 4) {
+  if (s >= 2 && s < 4) {
     out += box(525, 108, 370, 122, L(lang, s >= 2 ? 'A collision is a chain' : 'Bucket index', s >= 2 ? 'Коллизия образует цепочку' : 'Индекс ячейки'), [s >= 2 ? L(lang, 'user:2 ≠ user:1 → next', 'user:2 ≠ user:1 → дальше') : 'hash & (size − 1)', s >= 3 ? L(lang, 'user:1 = user:1 → value', 'user:1 = user:1 → значение') : L(lang, 'compare the full key', 'сравнить весь ключ')], { active: s === 3, code: true, size: 16 });
-  } else {
+  } else if (s >= 4) {
     out += text(590, 91, L(lang, 'Table 1 · 8 buckets', 'Таблица 1 · 8 ячеек'), { bold: true });
     ['0 ∅', '1 ∅', '2 user:2', '3 ∅', '4 ∅', '5 ∅', '6 user:1', '7 ∅'].forEach((v, i) => { out += chip(590 + (i >= 4 ? 155 : 0), 106 + i % 4 * 34, 145, s === 4 ? `${i}  ∅` : v, { h: 30, color: s === 5 && (i === 2 || i === 6) ? C.red : undefined }); });
     out += arrow(395, 165, 570, 165, s === 5 ? L(lang, 'move a bucket', 'перенос ячейки') : L(lang, 'allocate', 'выделить'), { color: C.blue, role: 'internal', stage: 1 });
@@ -134,8 +146,7 @@ function dictionary(s, lang) {
   return out + note(L(lang, s < 4 ? 'The hash chooses a bucket; equality finds the actual key.' : 'Rehash moves entries gradually; lookups may inspect both tables.', s < 4 ? 'Хеш выбирает ячейку; сравнение находит нужный ключ.' : 'Rehash переносит записи постепенно; поиск может читать обе таблицы.'));
 }
 function encodings(s, lang) {
-  const types = ['String', 'List', 'Set', 'Hash', 'Sorted Set', L(lang, 'Growth', 'Рост')];
-  let out = dots(25, 18, types, s, 140);
+  let out = ''; // The chapter caption introduces the current data type.
   if (s === 0) {
     out += box(75, 88, 335, 137, 'String', ['"hello" → SDS', L(lang, '"42" → integer encoding', '"42" → целое число')], { active: true, code: true });
     out += box(555, 88, 330, 137, 'SDS', ['len: 5 · alloc: 5', 'h | e | l | l | o'], { code: true });
@@ -342,7 +353,7 @@ function latency(s, lang) {
 function rdb(s, lang) {
   const childActive = s >= 1 && s <= 3;
   let out = text(165, 30, L(lang, 'Parent · live data', 'Родитель · рабочие данные'), { anchor: 'middle', bold: true });
-  out += text(570, 30, L(lang, childActive ? 'Child · snapshot' : 'No active child', childActive ? 'Потомок · снимок' : 'Нет дочернего процесса'), { anchor: 'middle', bold: true });
+  if (childActive) out += text(570, 30, L(lang, 'Child · snapshot', 'Потомок · снимок'), { anchor: 'middle', bold: true });
   for (let i = 0; i < 3; i++) {
     const changed = i === 1 && s >= 2 && s < 5;
     out += chip(55, 61 + i * 55, 220, `${L(lang, 'page', 'стр.')} ${i + 1}: ${changed ? 'Bob' : 'Alice'}`, { key: `rdb-parent-${i}`, color: changed ? C.green : undefined });
@@ -393,12 +404,18 @@ function replication(s, lang) {
   const notes = [L(lang, 'The primary can reply OK before a replica has applied the write.', 'Primary может вернуть OK до применения записи репликой.'), L(lang, 'Offsets track progress through the ordered replication stream.', 'Смещения показывают прогресс в упорядоченном потоке репликации.'), L(lang, 'A matching replication history and backlog permit partial synchronization.', 'Подходящая история и backlog позволяют частичную синхронизацию.'), L(lang, 'Without a usable backlog, a full sync sends the dataset and subsequent writes.', 'Без подходящего backlog полная синхронизация передаёт данные и новые записи.'), L(lang, 'WAIT counts replica acknowledgements; it does not turn Redis into Raft.', 'WAIT считает подтверждения реплик; он не превращает Redis в Raft.'), L(lang, 'WAITAOF waits for requested local and replica AOF fsync acknowledgements.', 'WAITAOF ждёт заданное число локальных и репличных подтверждений fsync AOF.')];
   return out + note(notes[s], { y: 305 });
 }
+// Only Sentinel changes a node's identity within this story. Keep the old
+// identity visible until the promotion phase, just like a changed key value.
+function sentinelRole(markup, key) {
+  let index = 0;
+  return markup.replace(/<text\b[^>]*>[\s\S]*?<\/text>/g, label => ++index <= 2 ? node(`${key}-${index}`, label, { motion: 'change', stage: 2 }) : label);
+}
 function sentinel(s, lang) {
   let out = '';
   [180, 480, 780].forEach((x, i) => { out += node(`sentinel-${i}`, `<circle cx="${x}" cy="56" r="28" fill="${C.server}" stroke="${C.ink}" stroke-width="${s === 1 && i === 0 || s >= 2 ? 2 : 1}"/>${text(x, 62, `S${i + 1}`, { anchor: 'middle', color: C.white, size: 17 })}`); });
   out += text(480, 14, L(lang, s === 1 ? 'SDOWN · one observer suspects failure' : s === 2 ? 'ODOWN · configured quorum agrees' : 'Sentinel observers', s === 1 ? 'SDOWN · один наблюдатель видит сбой' : s === 2 ? 'ODOWN · кворум подтверждает сбой' : 'Наблюдатели Sentinel'), { anchor: 'middle', size: 15, color: C.muted });
-  out += server(310, 180, L(lang, s >= 3 ? 'old primary' : 'Primary', s >= 3 ? 'бывший primary' : 'Primary'), s === 5 ? L(lang, 'k = v2 · isolated', 'k = v2 · изолирован') : s >= 1 ? L(lang, 'unreachable', 'недоступен') : 'k = v1', false, s >= 1 && s !== 5);
-  out += server(665, 180, s >= 3 ? 'Primary' : L(lang, 'Replica', 'Реплика'), s >= 3 ? 'k = v1' : 'k = v1', s >= 3);
+  out += sentinelRole(server(310, 180, L(lang, s >= 3 ? 'old primary' : 'Primary', s >= 3 ? 'бывший primary' : 'Primary'), s === 5 ? L(lang, 'k = v2 · isolated', 'k = v2 · изолирован') : s >= 1 ? L(lang, 'unreachable', 'недоступен') : 'k = v1', false, s >= 1 && s !== 5, 'sentinel-old-server'), 'sentinel-old-role');
+  out += sentinelRole(server(665, 180, s >= 3 ? 'Primary' : L(lang, 'Replica', 'Реплика'), 'k = v1', s >= 3, false, 'sentinel-new-server'), 'sentinel-new-role');
   if (s <= 2) [180, 480, 780].forEach((x, i) => { out += arrow(x, 95, 310 + (x - 480) * 0.1, 117, '', { key: `sentinel-probe-${i}`, role: 'request', color: s >= 1 ? C.muted : C.blue, dashed: s >= 1 }); });
   if (s === 0) out += arrow(355, 113, 475, 88, 'PONG', { key: 'sentinel-pong', role: 'reply', color: C.green });
   if (s === 1) out += arrow(180, 95, 280, 117, 'PING', { key: 'sentinel-timeout-probe', role: 'request', color: C.red });
@@ -519,63 +536,44 @@ function specialized(s, lang) {
 const renderers = { 'first-key': firstKey, request, 'event-loop': eventLoop, dictionary, encodings, atomicity, transactions, scripting, blocking, locks, expiry, memory, latency, rdb, aof, replication, sentinel, cluster, pubsub, streams, specialized };
 /** Render one of the 21 bilingual chapter diagrams. Values outside the story range are clamped. */
 export function storyScene(id, step, lang = 'en', compact = false) {
+  id = Object.hasOwn(renderers, id) ? id : 'first-key';
   const locale = lang === 'ru' ? 'ru' : 'en';
-  const s = Math.max(0, Math.min(5, Math.trunc(Number(step) || 0)));
+  identityCounts = Object.create(null);
+  const beat = resolveBeat(id, step);
+  const s = beat.scene;
   const title = (titles[id] || titles['first-key'])[locale === 'ru' ? 1 : 0];
-  const description = L(locale, `${compact ? "Compact diagram. " : ""}Educational simulation, step ${s + 1} of 6. ${title}.`, `${compact ? "Компактная схема. " : ""}Учебная симуляция, шаг ${s + 1} из 6. ${title}.`);
+  const description = L(locale, `${compact ? "Compact diagram. " : ""}Educational simulation, step ${Math.max(0, Math.trunc(Number(step) || 0)) + 1} of ${storyLength(id)}. ${title}.`, `${compact ? "Компактная схема. " : ""}Учебная симуляция, шаг ${Math.max(0, Math.trunc(Number(step) || 0)) + 1} из ${storyLength(id)}. ${title}.`);
   const markers = [C.red, C.green, C.blue, C.muted, C.line, C.ink].map(color => `<marker id="scene-arrow-${color.replace('#', '')}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M0 0 L8 4 L0 8" fill="${color}"/></marker>`).join('');
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${compact ? '0 0 420 360' : '0 0 960 330'}" data-chapter="${E(id)}" data-step="${s}" role="img" aria-label="${E(title)}. ${E(description)}" focusable="false"><title>${E(title)}</title><desc>${E(description)}</desc><defs>${markers}</defs>${compact ? compactScene(id, s, locale) : (renderers[id] || firstKey)(s, locale)}</svg>`;
+  const special = id === 'first-key' ? firstKey(s, locale, compact, beat.operation) : id === 'request' ? request(s, locale, compact) : null;
+  const composed = special === null ? composeActors(id, s, compact, compact ? compactScene(id, s, locale) : (renderers[id] || firstKey)(s, locale)) : { markup: special, focal: `actor:${getComposition(id, s, compact).focal}` };
+  // These chapters switch to a different data structure at each stop. A String
+  // must leave the stage before a List arrives; JSON is not a vector in disguise.
+  if (id === 'encodings' || id === 'specialized') {
+    const variants = id === 'encodings' ? ['string', 'list', 'set', 'hash', 'sorted-set', 'growth'] : ['json', 'search', 'vectors', 'time-series', 'bitmap-geo', 'probabilistic'];
+    const namespace = `${id}:${variants[s]}:`;
+    composed.markup = composed.markup.replace(/data-key="([^"]+)"/g, (_, key) => `data-key="${namespace}${key}"`);
+    composed.focal = namespace + composed.focal;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${compact ? '0 0 420 360' : '0 0 960 330'}" data-chapter="${E(id)}" data-step="${s}" data-focal="${E(composed.focal)}" role="img" aria-label="${E(title)}. ${E(description)}" focusable="false"><title>${E(title)}</title><desc>${E(description)}</desc><defs>${markers}</defs>${composed.markup}</svg>`;
 }
 
 // Compact diagrams are composed at their native width rather than scaled down.
 // They focus on the current mechanism; the full desktop view remains available.
 function mCircle(x, y, mark, label = '', opt = {}) {
   const r = opt.r || 29;
-  return node(opt.key || `circle-${x}-${y}`, `<circle cx="${x}" cy="${y}" r="${r}" fill="${opt.failed ? '#999999' : opt.color || C.server}" stroke="${C.ink}" stroke-width="${opt.active ? 3 : 1}"/>${text(x, y + 6, mark, { anchor: 'middle', size: opt.size || 17, color: C.white })}${label ? text(x, y + r + 24, label, { anchor: 'middle', size: 14 }) : ''}${opt.failed ? `<path d="M${x-r+8} ${y-r+8} L${x+r-8} ${y+r-8} M${x+r-8} ${y-r+8} L${x-r+8} ${y+r-8}" stroke="${C.ink}" stroke-width="2"/>` : ''}`, { active: opt.active });
+  return node(opt.key || identity('circle'), `<circle cx="${x}" cy="${y}" r="${r}" fill="${opt.failed ? '#999999' : opt.color || C.server}" stroke="${C.ink}" stroke-width="${opt.active ? 3 : 1}"/>${text(x, y + 6, mark, { anchor: 'middle', size: opt.size || 17, color: C.white })}${label ? text(x, y + r + 24, label, { anchor: 'middle', size: 14 }) : ''}${opt.failed ? `<path d="M${x-r+8} ${y-r+8} L${x+r-8} ${y+r-8} M${x+r-8} ${y-r+8} L${x-r+8} ${y+r-8}" stroke="${C.ink}" stroke-width="2"/>` : ''}`, { active: opt.active });
 }
 function mCell(x, y, w, label, opt = {}) {
   const h = opt.h || 32;
-  return node(opt.key || `entry-${x}-${y}`, `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${opt.fill || C.white}" stroke="${C.ink}" stroke-width="${opt.active ? 2 : 1}"/>${text(x + w / 2, y + h / 2 + 5, label, { anchor: 'middle', size: opt.size || 14, color: opt.color || C.ink, code: true })}`, { active: opt.active, motion: opt.motion || 'change', stage: opt.stage, sequence: opt.sequence, transient: opt.transient, previousUntil: opt.previousUntil, pass: opt.pass });
+  return node(opt.key || identity('entry'), `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${opt.fill || C.white}" stroke="${C.ink}" stroke-width="${opt.active ? 2 : 1}"/>${text(x + w / 2, y + h / 2 + 5, label, { anchor: 'middle', size: opt.size || 14, color: opt.color || C.ink, code: true })}`, { active: opt.active, motion: opt.motion || 'change', stage: opt.stage, sequence: opt.sequence, transient: opt.transient, previousUntil: opt.previousUntil, pass: opt.pass });
 }
-function mNote(label) {
-  const lines = [''];
-  for (const word of String(label).split(' ')) { const i = lines.length - 1; if ((lines[i] + ' ' + word).trim().length > 43 && lines[i]) lines.push(word); else lines[i] += (lines[i] ? ' ' : '') + word; }
-  return text(210, lines.length > 1 ? 320 : 338, lines, { size: 14, leading: 19, anchor: 'middle', color: C.muted, key: 'scene-caption', motion: 'change', stage: 4 });
-}
+function mNote() { return ''; }
 function compactScene(id, s, lang) {
   const t = (en, ru) => L(lang, en, ru);
   let out = '';
   switch (id) {
-    case 'first-key': {
-      out += mCircle(75, 112, 'C', t('Client', 'Клиент'), { color: C.green, r: 29, key: 'first-key-client' });
-      out += mCircle(345, 112, 'R', 'Redis', { r: 39, active: s === 2, key: 'first-key-server' });
-      if (s === 5) {
-        out += mCell(25, 16, 370, 'SET user:1 Bob', { key: 'first-key-command-set', motion: 'change', stage: 0, sequence: 0 });
-        out += arrow(121, 91, 291, 91, '', { key: 'first-key-request-set', role: 'request', sequence: 0 });
-        out += mCell(40, 235, 340, 'user:1 → "Bob"', { key: 'first-key-replacement', motion: 'change', stage: 2, sequence: 0, transient: true, size: 17 });
-        out += arrow(291, 132, 121, 132, '+OK', { key: 'first-key-reply-set', color: C.green, role: 'reply', sequence: 0 });
-        out += mCell(25, 16, 370, 'DEL user:1', { key: 'first-key-command-del', motion: 'change', stage: 0, sequence: 1 });
-        out += arrow(121, 91, 291, 91, '', { key: 'first-key-request-del', role: 'request', sequence: 1 });
-        out += mCell(40, 235, 340, 'user:1 → ∅', { key: 'first-key-value', motion: 'change', stage: 2, sequence: 1, previousUntil: 0, size: 17 });
-        out += arrow(291, 132, 121, 132, ':1', { key: 'first-key-reply-del', color: C.green, role: 'reply', sequence: 1 });
-      } else {
-        out += mCell(25, 16, 370, s === 4 ? 'GET user:1' : 'SET user:1 Alice', { key: 'first-key-command', motion: 'context' });
-        out += arrow(121, 91, 291, 91, '', { key: 'first-key-request', role: 'request' });
-        out += mCell(40, 235, 340, s < 2 ? 'user:1 → ∅' : 'user:1 → "Alice"', { key: 'first-key-value', motion: s >= 2 ? 'change' : 'context', stage: 2, size: 17 });
-        if (s >= 3) out += arrow(291, 132, 121, 132, s === 4 ? '"Alice"' : '+OK', { key: 'first-key-reply', color: C.green, role: 'reply' });
-      }
-      out += text(210, 219, 'RAM', { anchor: 'middle', size: 14 });
-      return out + mNote(t(s === 1 ? 'Find the named key: it is absent.' : s === 5 ? 'Alice → Bob → missing: one named entry.' : 'The key points to a value in memory.', s === 1 ? 'Найти ключ: его пока нет.' : s === 5 ? 'Alice → Bob → нет ключа: одна запись.' : 'Ключ указывает на значение в памяти.'));
-    }
-    case 'request': {
-      const fragment = s === 2 ? 'SET · user:1 · Ali…' : s >= 3 ? 'SET · user:1 · Alice' : t('TCP byte stream', 'Поток байтов TCP');
-      out += box(40, 18, 340, 70, 'TCP', [fragment], { key: 'request-socket', active: s === 0, size: 14, titleSize: 16, code: true });
-      if (s >= 1) out += arrow(210, 96, 210, 108, '', { key: 'request-buffer-transfer', role: 'internal', stage: 1, color: s <= 3 ? C.red : C.line });
-      if (s >= 1) out += box(40, 118, 340, 70, t('Input buffer', 'Входной буфер'), [s === 2 ? t('ends at Ali → need ce', 'обрыв на Ali → нужны ce') : s >= 3 ? t('3 complete arguments', '3 полных аргумента') : '*3 · $3 · SET · …'], { key: 'request-buffer', active: s >= 1 && s <= 3, size: 14, titleSize: 16, code: true });
-      if (s >= 3) out += arrow(210, 196, 210, 208, '', { key: 'request-parser-transfer', role: s === 5 ? 'reply' : 'internal', stage: 1, color: s >= 3 ? s === 5 ? C.green : C.red : C.line });
-      if (s >= 3) out += box(40, 218, 340, 70, s === 5 ? t('Output buffer', 'Выходной буфер') : s === 4 ? t('Command checks', 'Проверки команды') : t('RESP parser', 'Разбор RESP'), [s === 5 ? '+OK\\r\\n' : s === 4 ? t('arity · ACL · state', 'аргументы · ACL · режим') : s < 3 ? t('need complete arguments', 'нужны полные аргументы') : 'SET user:1 Alice'], { key: 'request-parser', active: s >= 4, size: 14, titleSize: 16, code: true });
-      return out + mNote(t(s === 2 ? 'Incomplete commands do not execute.' : 'TCP chunks are not RESP boundaries.', s === 2 ? 'Неполная команда пока не исполняется.' : 'Границы TCP и RESP различаются.'));
-    }
+    case 'first-key': return firstKey(s, lang, true);
+    case 'request': return request(s, lang, true);
     case 'event-loop': {
       ['A', 'B', 'C'].forEach((name, i) => { const selected = s === 2 && i === 0 || s === 3 && i === 1 || s === 5 && i === 0; out += mCircle(70 + i * 140, 43, name, [s === 5 ? 'EVAL' : 'SET', 'GET', 'PING'][i], { key: `event-client-${name}`, color: C.green, active: selected }); out += arrow(70 + i * 140, 115, 70 + i * 140, 139, '', { key: `event-request-${name}`, role: 'request', color: selected || s === 1 ? C.red : C.line, dashed: s === 5 && i === 2 }); });
       out += mCircle(210, 192, 'R', 'Redis · event loop', { key: 'event-loop-server', r: 40 });
@@ -819,8 +817,8 @@ function compactScene(id, s, lang) {
     case 'sentinel': {
       out += text(210, 20, s === 1 ? 'SDOWN' : s === 2 ? t('ODOWN · quorum', 'ODOWN · кворум') : s >= 3 ? t('election → failover', 'выборы → переключение') : 'Sentinel', { size: 16, anchor: 'middle' });
       [70, 210, 350].forEach((x, i) => { out += mCircle(x, 72, `S${i + 1}`, '', { key: `sentinel-${i}`, r: 23, color: C.server, active: s === 1 && i === 0 || s >= 2, size: 14 }); if (s <= 2) out += arrow(x, 107, 110, 157, '', { key: `sentinel-probe-${i}`, role: 'request', color: s >= 1 ? C.muted : C.blue, dashed: s >= 1 }); });
-      out += mCircle(110, 209, 'P', s >= 3 ? t('old primary', 'старый primary') : 'Primary', { r: 35, failed: s >= 1 && s !== 5 });
-      out += mCircle(310, 209, s >= 3 ? 'P' : 'R', s >= 3 ? 'Primary' : t('Replica', 'Реплика'), { r: 35, active: s >= 3 });
+      out += sentinelRole(mCircle(110, 209, 'P', s >= 3 ? t('old primary', 'старый primary') : 'Primary', { r: 35, failed: s >= 1 && s !== 5, key: 'sentinel-old-server' }), 'sentinel-old-role');
+      out += sentinelRole(mCircle(310, 209, s >= 3 ? 'P' : 'R', s >= 3 ? 'Primary' : t('Replica', 'Реплика'), { r: 35, active: s >= 3, key: 'sentinel-new-server' }), 'sentinel-new-role');
       if (s === 0) out += arrow(139, 157, 210, 110, 'PONG', { role: 'reply', color: C.green });
       if (s === 1) out += arrow(70, 107, 110, 157, 'PING', { role: 'request', color: C.red });
       if (s === 2) out += arrow(105, 72, 176, 72, '', { role: 'sync', color: C.blue });

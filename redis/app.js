@@ -9,15 +9,14 @@ import {stepEvidence} from './evidence.js';
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const icon = (name, size=17) => {
-  const paths = {back:'M15 3 6 10l9 7', next:'m6 3 9 7-9 7', replay:'M4 7a7 7 0 1 1-1 6M4 2v5h5', close:'m4 4 12 12M16 4 4 16', play:'m6 3 11 7-11 7Z', pause:'M6 3v14M14 3v14'};
-  return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true"><path d="${paths[name]}" fill="${name==='play'?'currentColor':'none'}" stroke="currentColor" stroke-width="${name==='pause'?3:2}" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+  const paths = {next:'m6 3 9 7-9 7', replay:'M4 7a7 7 0 1 1-1 6M4 2v5h5', close:'m4 4 12 12M16 4 4 16'};
+  return `<svg width="${size}" height="${size}" viewBox="0 0 20 20" aria-hidden="true"><path d="${paths[name]}" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 };
 let stored = '';
 try { stored = localStorage.getItem('redis-language') || ''; } catch { /* Private/storage-disabled browsing is supported. */ }
 let lang = chooseLanguage({search:location.search, stored, languages:navigator.languages || [navigator.language]});
 let chapterIndex = Math.max(0,chapters.findIndex(c=>c.id===decodeHash()));
 let stepIndex = 0;
-let rate = 1;
 let autoPaused = false;
 let timelineDuration = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -33,37 +32,23 @@ function updateUrl(push=false) {
 function stopAnimation() {
   playback.cancel(false);
 }
-function renderPlayButton() {
-  $('play').disabled=reducedMotion.matches;
-  const running=playback.state==='running';
-  $('play').innerHTML=icon(running?'pause':'play',13);
-  $('play').setAttribute('aria-label',t(running?'pause':'play'));
-  $('play').title=t(running?'pause':'play');
-}
 function renderPlaybackState() {
   const busy=playback.busy;
   $('scene').setAttribute('aria-busy',String(busy));
   $('player').dataset.playback=playback.state;
   $('player').dataset.duration=String(timelineDuration);
-  $('previous').disabled=busy||(chapterIndex===0&&stepIndex===0);
   $('next').disabled=busy;
   $('replay').disabled=busy||reducedMotion.matches;
-  for(const id of ['under','zoom'])$(id).disabled=busy;
-  renderPlayButton();
+  $('about').disabled=busy;
 }
 function beginAnimation({elapsed=0,paused=false}={}) {
   stopAnimation();
   renderDiagram();
   if(reducedMotion.matches) {timelineDuration=0;playback.start([]);return;}
   const previousMarkup=stepIndex>0?storyScene(current().id,stepIndex-1,lang,smallViewport.matches):null;
-  const timeline=sceneAnimations({host:$('scene'),previousMarkup,caption:$('explanation'),controls:document.querySelector('.player-controls'),score:choreography(current().id,stepIndex)});
+  const timeline=sceneAnimations({host:$('scene'),previousMarkup,caption:$('explanation'),controls:document.querySelector('.player-controls'),score:choreography(current().id,stepIndex),entry:stepIndex===0,sceneId:current().id});
   timelineDuration=timeline.duration;
-  playback.start(timeline.animations,{rate,elapsed,paused});
-}
-function toggleAnimation() {
-  if(!playback.busy)beginAnimation();
-  else if(playback.paused)playback.resume();
-  else playback.pause();
+  playback.start(timeline.animations,{rate:1,elapsed,paused});
 }
 function renderDiagram() {
   $('scene').innerHTML=storyScene(current().id,stepIndex,lang,smallViewport.matches);
@@ -80,7 +65,7 @@ function renderMenu() {
 }
 function renderDetails() {
   const chapter=current();
-  $('detailsTitle').textContent=`${t('under')} · ${l(chapter.title)}`;
+  $('detailsTitle').textContent=`${t('about')} · ${l(chapter.title)}`;
   const command=chapter.steps[stepIndex].command;
   const detail=chapter.steps[stepIndex].detail;
   const proof=stepEvidence(chapter.id,stepIndex);
@@ -96,24 +81,13 @@ function render({animate=false}={}) {
   document.querySelectorAll('.languages').forEach(group=>group.setAttribute('aria-label',t('language')));
   document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===lang)));
   $('menuButton').setAttribute('aria-label',t('contents')); $('menuButton').title=t('contents');
-  $('chapterMeta').textContent=`Redis · ${String(chapterIndex+1).padStart(2,'0')} / 21 · ${l(current().title)}`;
+  $('chapterMeta').textContent=l(current().title);
   $('stepTitle').textContent=l(current().steps[stepIndex].title);
   $('explanation').textContent=l(current().steps[stepIndex].body);
-  $('previous').innerHTML=icon('back'); $('previous').disabled=chapterIndex===0&&stepIndex===0;
-  $('previous').setAttribute('aria-label',t('previous')); $('previous').title=t('previous');
   $('replay').innerHTML=icon('replay'); $('replay').setAttribute('aria-label',t('replay')); $('replay').title=t('replay');
   $('replay').disabled=reducedMotion.matches;
-  const last=stepIndex===current().steps.length-1;
-  $('next').innerHTML=`${escape(t(last?(chapterIndex===chapters.length-1?'finish':'nextChapter'):'next'))}${icon('next',14)}`;
-  $('stepCounter').textContent=`${stepIndex+1} / ${current().steps.length}`;
-  $('stepCounter').setAttribute('aria-label',`${t('step')} ${stepIndex+1} ${t('of')} ${current().steps.length}`);
-  $('speed').setAttribute('aria-label',t('speed')); $('speed').title=t('speed');
-  $('speed').disabled=reducedMotion.matches;
-  $('under').textContent=t('under');
-  $('zoom').textContent=t('zoom'); $('diagramTitle').textContent=l(current().steps[stepIndex].title);
-  $('panHint').textContent=t('pan'); $('largeDiagram').innerHTML=storyScene(current().id,stepIndex,lang).replaceAll('scene-arrow-','zoom-arrow-');
-  settleDiagram($('largeDiagram'));
-  $('motionNotice').hidden=!reducedMotion.matches; $('motionNotice').textContent=t('reduced');
+  $('next').innerHTML=`${escape(t('next'))}${icon('next',14)}`;
+  $('about').textContent=t('about');
   document.querySelectorAll('.close-dialog').forEach(b=>{b.innerHTML=icon('close',14);b.setAttribute('aria-label',t('close'));});
   renderDiagram(); renderMenu(); renderDetails(); renderPlaybackState();
   if(animate) beginAnimation();
@@ -140,21 +114,18 @@ function switchLanguage(nextLang) {
   updateUrl(true); render();
   if(wasPlaying)beginAnimation({elapsed,paused:wasPaused});
 }
-$('next').addEventListener('click',next); $('previous').addEventListener('click',previous);
+$('next').addEventListener('click',next);
 $('skip').addEventListener('click',e=>{e.preventDefault();$('explanation').focus();$('explanation').scrollIntoView({block:'nearest'});});
-$('replay').addEventListener('click',()=>{if(!playback.busy)beginAnimation();}); $('play').addEventListener('click',toggleAnimation);
-$('speed').addEventListener('change',e=>{rate=Number(e.target.value);playback.setRate(rate);});
+$('replay').addEventListener('click',()=>{if(!playback.busy)beginAnimation();});
 document.querySelectorAll('[data-lang]').forEach(button=>button.addEventListener('click',()=>switchLanguage(button.dataset.lang)));
 $('menuButton').addEventListener('click',()=>{$('contents').showModal();});
-$('under').addEventListener('click',()=>{$('details').showModal();});
-$('zoom').addEventListener('click',()=>{$('diagramDialog').showModal();});
+$('about').addEventListener('click',()=>{$('contents').close();$('details').showModal();});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('chapterLinks').addEventListener('click',e=>{const link=e.target.closest('[data-chapter]');if(!link)return;e.preventDefault();$('contents').close();navigate(chapters.findIndex(c=>c.id===link.dataset.chapter));});
 document.addEventListener('keydown',e=>{
-  if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('dialog,select,input,textarea,[contenteditable]'))return;
+  if(e.altKey||e.ctrlKey||e.metaKey||e.target.closest('dialog,input,textarea,[contenteditable]'))return;
   if(e.key==='ArrowRight'){e.preventDefault();next();}
   if(e.key==='ArrowLeft'){e.preventDefault();previous();}
-  if(e.code==='Space'&&!e.target.closest('button,a')){e.preventDefault();toggleAnimation();}
 });
 function routeFromUrl() {
   const nextIndex=chapters.findIndex(c=>c.id===decodeHash());

@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { chapters } from '../content.js';
 import { choreography, choreographyIds } from '../choreography.js';
+import { storyLength } from '../beats.js';
 
 test('every chapter and every story step has an explicit finite animation score', () => {
   assert.deepEqual(choreographyIds, chapters.map(chapter => chapter.id));
   let count = 0;
   for (const chapter of chapters) {
-    assert.equal(chapter.steps.length, 6);
+    assert.equal(chapter.steps.length, storyLength(chapter.id));
     for (let index = 0; index < chapter.steps.length; index++) {
       const { phases, total } = choreography(chapter.id, index);
       count++;
@@ -27,7 +28,7 @@ test('every chapter and every story step has an explicit finite animation score'
       }
     }
   }
-  assert.equal(count, 126);
+  assert.equal(count, chapters.reduce((sum,chapter)=>sum+chapter.steps.length,0));
 });
 
 const actionOrder = (id, index) => choreography(id, index).phases
@@ -40,10 +41,12 @@ test('ordinary writes update memory after receipt and reply after the update', (
   }
 });
 
-test('the replacement/deletion step has two separate causal operation beats', () => {
-  const actions = choreography('first-key', 5).phases.slice(1, -1);
-  assert.deepEqual(actions.map(phase => phase.beat), [0, 0, 0, 1, 1, 1]);
-  assert.deepEqual(actionOrder('first-key', 5), ['request', 'change', 'reply', 'request', 'change', 'reply']);
+test('replacement and deletion have separate stops with one causal operation each', () => {
+  for(const [index,beat] of [[5,0],[6,1]]) {
+    const actions = choreography('first-key', index).phases.slice(1, -1);
+    assert.deepEqual(actions.map(phase => phase.beat), [beat,beat,beat]);
+    assert.deepEqual(actionOrder('first-key', index), ['request', 'change', 'reply']);
+  }
 });
 
 test('replication applies a received stream before sending its acknowledgement', () => {
@@ -68,6 +71,6 @@ test('scores are fresh on replay and invalid positions are safely clamped', () =
   first.phases[0].duration = 1;
   assert.notEqual(choreography('first-key', 0).phases[0].duration, 1);
   assert.deepEqual(choreography('first-key', -3), choreography('first-key', 0));
-  assert.deepEqual(choreography('first-key', 999), choreography('first-key', 5));
+  assert.deepEqual(choreography('first-key', 999), choreography('first-key', 6));
   assert.deepEqual(choreography('unknown'), choreography('first-key', 0));
 });

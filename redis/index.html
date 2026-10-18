@@ -22,7 +22,7 @@
     </div>
   </header>
   <main id="player">
-    <h1 id="chapterMeta"></h1>
+    <h1 id="chapterMeta" class="sr-only"></h1>
     <div id="scene" class="scene-wrap" aria-describedby="explanation"></div>
     <section class="narrative" aria-labelledby="stepTitle">
       <h2 id="stepTitle" class="sr-only"></h2>
@@ -31,28 +31,15 @@
         <button id="replay" class="button icon-button" type="button" disabled></button>
         <button id="next" class="button continue" type="button" disabled></button>
       </div>
-      <div class="utilities">
-        <span id="stepCounter"></span><span class="separator" aria-hidden="true">·</span>
-        <button id="previous" class="text-button utility-back" type="button" disabled></button>
-        <button id="play" type="button" class="text-button"></button>
-        <select id="speed" aria-label="Animation speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
-        <span class="separator" aria-hidden="true">·</span><button id="under" class="text-button" type="button" aria-haspopup="dialog"></button>
-        <button id="zoom" class="text-button mobile-zoom" type="button" aria-haspopup="dialog"></button>
-      </div>
-      <p id="motionNotice" class="motion-notice" hidden></p>
     </section>
   </main>
   <dialog id="contents" class="contents-dialog" aria-labelledby="contentsTitle">
     <div class="dialog-head"><h2 id="contentsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="contents" type="button"></button></div></div>
-    <p id="chapterCount" class="muted"></p><nav id="chapterLinks"></nav>
+    <div class="contents-meta"><p id="chapterCount" class="muted"></p><button id="about" class="text-button" type="button" aria-haspopup="dialog"></button></div><nav id="chapterLinks"></nav>
   </dialog>
   <dialog id="details" aria-labelledby="detailsTitle">
     <div class="dialog-head"><h2 id="detailsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="details" type="button"></button></div></div>
     <div id="detailsBody"></div>
-  </dialog>
-  <dialog id="diagramDialog" class="diagram-dialog" aria-labelledby="diagramTitle">
-    <div class="dialog-head"><h2 id="diagramTitle"></h2><button class="button close-dialog" data-close="diagramDialog" type="button"></button></div>
-    <p id="panHint" class="muted"></p><div id="largeDiagram" class="large-diagram" tabindex="0"></div>
   </dialog>
   <noscript><p class="noscript">Для интерактивного рассказа включите JavaScript. / Enable JavaScript to use the interactive explanation.</p></noscript>
 </body>
