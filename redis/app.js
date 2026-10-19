@@ -5,6 +5,8 @@ import {Playback} from './playback.js';
 import {sceneAnimations} from './motion.js';
 import {choreography} from './choreography.js';
 import {stepEvidence} from './evidence.js';
+import {nextStoryPosition, previousStoryPosition} from './navigation.js';
+import {chapterDeparture, chapterAnimations, afterChapterTitle} from './chapter-transition.js';
 
 const $ = id => document.getElementById(id);
 const escape = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -17,6 +19,8 @@ try { stored = localStorage.getItem('redis-language') || ''; } catch { /* Privat
 let lang = chooseLanguage({search:location.search, stored, languages:navigator.languages || [navigator.language]});
 let chapterIndex = Math.max(0,chapters.findIndex(c=>c.id===decodeHash()));
 let stepIndex = 0;
+let view = 'chapter';
+let departureTemplate = null;
 let autoPaused = false;
 let timelineDuration = 0;
 const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)');
@@ -24,13 +28,16 @@ const smallViewport = matchMedia('(max-width: 680px)');
 const t = key => messages[lang][key];
 const l = value => localize(value,lang);
 const current = () => chapters[chapterIndex];
+const position = () => ({chapter:chapterIndex, step:stepIndex, view});
+const lengths = chapters.map(chapter=>chapter.steps.length);
 const playback = new Playback(renderPlaybackState);
 function decodeHash() { try {return decodeURIComponent(location.hash.slice(1));} catch {return '';} }
 function updateUrl(push=false) {
-  history[push?'pushState':'replaceState']({chapter:current().id,step:stepIndex},'',chapterUrl(current().id,lang,location.pathname));
+  history[push?'pushState':'replaceState']({chapter:current().id,step:stepIndex,view},'',chapterUrl(current().id,lang,location.pathname));
 }
 function stopAnimation() {
   playback.cancel(false);
+  $('player').querySelectorAll('.chapter-departure').forEach(node=>node.remove());
 }
 function renderPlaybackState() {
   const busy=playback.busy;
@@ -39,18 +46,29 @@ function renderPlaybackState() {
   $('player').dataset.duration=String(timelineDuration);
   $('next').disabled=busy;
   $('replay').disabled=busy||reducedMotion.matches;
-  $('about').disabled=busy;
+  $('about').disabled=busy||view==='chapter';
 }
 function beginAnimation({elapsed=0,paused=false}={}) {
   stopAnimation();
   renderDiagram();
-  if(reducedMotion.matches) {timelineDuration=0;playback.start([]);return;}
-  const previousMarkup=stepIndex>0?storyScene(current().id,stepIndex-1,lang,smallViewport.matches):null;
-  const timeline=sceneAnimations({host:$('scene'),previousMarkup,caption:$('explanation'),controls:document.querySelector('.player-controls'),score:choreography(current().id,stepIndex),entry:stepIndex===0,sceneId:current().id});
+  if(reducedMotion.matches) {timelineDuration=0;departureTemplate=null;playback.start([]);return;}
+  const departure=departureTemplate?.cloneNode(true);
+  if(departure)$('player').appendChild(departure);
+  let timeline;
+  if(view==='chapter') {
+    timeline=chapterAnimations({title:$('chapterTitle'),controls:document.querySelector('.player-controls'),departure});
+  } else {
+    const previousMarkup=stepIndex>0?storyScene(current().id,stepIndex-1,lang,smallViewport.matches):null;
+    timeline=sceneAnimations({host:$('scene'),previousMarkup,caption:$('explanation'),controls:document.querySelector('.player-controls'),score:choreography(current().id,stepIndex),entry:stepIndex===0,sceneId:current().id});
+    if(departure)timeline=afterChapterTitle(timeline,{departure,scene:$('scene')});
+  }
   timelineDuration=timeline.duration;
-  playback.start(timeline.animations,{rate:1,elapsed,paused});
+  playback.start(timeline.animations,{rate:1,elapsed,paused}).then(completed=>{
+    if(completed){departure?.remove();departureTemplate=null;}
+  });
 }
 function renderDiagram() {
+  if(view==='chapter'){$('scene').replaceChildren();return;}
   $('scene').innerHTML=storyScene(current().id,stepIndex,lang,smallViewport.matches);
   settleDiagram($('scene'));
 }
@@ -74,6 +92,7 @@ function renderDetails() {
   $('detailsBody').innerHTML=`${detail?`<p>${escape(l(detail))}</p>`:''}${command?`<h3>${escape(t('command'))}</h3><pre>${escape(command)}</pre>`:''}${evidenceHtml}${chapter.deeper.map(p=>`<p>${escape(l(p))}</p>`).join('')}<h3>${escape(t('sources'))}</h3>${links(chapter.sources)}`;
 }
 function render({animate=false}={}) {
+  const focusInPlayer=$('player').contains(document.activeElement);
   document.documentElement.lang=lang;
   document.querySelector('meta[name="description"]').content=t('description');
   document.title=`${l(current().title)} · ${t('app')} · The Secret Lives of Data`;
@@ -82,6 +101,17 @@ function render({animate=false}={}) {
   document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.lang===lang)));
   $('menuButton').setAttribute('aria-label',t('contents')); $('menuButton').title=t('contents');
   $('chapterMeta').textContent=l(current().title);
+  $('chapterTitle').textContent=l(current().title);
+  $('player').dataset.view=view;
+  $('chapterIntro').hidden=view!=='chapter';
+  $('scene').hidden=view==='chapter';
+  $('narrative').hidden=view==='chapter';
+  const controls=document.querySelector('.player-controls');
+  const controlsParent=view==='chapter'?$('chapterIntroInner'):$('narrative');
+  if(controls.parentNode!==controlsParent) {
+    controlsParent.appendChild(controls);
+    if(focusInPlayer)(view==='chapter'?$('chapterTitle'):$('explanation')).focus({preventScroll:true});
+  }
   $('stepTitle').textContent=l(current().steps[stepIndex].title);
   $('explanation').textContent=l(current().steps[stepIndex].body);
   $('replay').innerHTML=icon('replay'); $('replay').setAttribute('aria-label',t('replay')); $('replay').title=t('replay');
@@ -92,19 +122,21 @@ function render({animate=false}={}) {
   renderDiagram(); renderMenu(); renderDetails(); renderPlaybackState();
   if(animate) beginAnimation();
 }
-function navigate(index,step=0,push=true) {
-  stopAnimation(); chapterIndex=index; stepIndex=step;
+function navigate(index,step=0,push=true,nextView='chapter') {
+  const departure=view==='chapter'||nextView==='chapter'?chapterDeparture($('player')):null;
+  stopAnimation(); chapterIndex=index; stepIndex=step; view=nextView; departureTemplate=departure;
   updateUrl(push); render({animate:true});
 }
 function next() {
   if(playback.busy)return;
-  if(stepIndex<current().steps.length-1) navigate(chapterIndex,stepIndex+1,false);
-  else navigate((chapterIndex+1)%chapters.length,0,true);
+  const next=nextStoryPosition(position(),lengths);
+  navigate(next.chapter,next.step,next.chapter!==chapterIndex,next.view);
 }
 function previous() {
   if(playback.busy)return;
-  if(stepIndex>0) navigate(chapterIndex,stepIndex-1,false);
-  else if(chapterIndex>0) navigate(chapterIndex-1,chapters[chapterIndex-1].steps.length-1,true);
+  const prev=previousStoryPosition(position(),lengths);
+  if(prev.chapter===chapterIndex&&prev.step===stepIndex&&prev.view===view)return;
+  navigate(prev.chapter,prev.step,prev.chapter!==chapterIndex,prev.view);
 }
 function switchLanguage(nextLang) {
   if(nextLang===lang) return;
@@ -115,7 +147,7 @@ function switchLanguage(nextLang) {
   if(wasPlaying)beginAnimation({elapsed,paused:wasPaused});
 }
 $('next').addEventListener('click',next);
-$('skip').addEventListener('click',e=>{e.preventDefault();$('explanation').focus();$('explanation').scrollIntoView({block:'nearest'});});
+$('skip').addEventListener('click',e=>{e.preventDefault();const target=view==='chapter'?$('chapterTitle'):$('explanation');target.focus();target.scrollIntoView({block:'nearest'});});
 $('replay').addEventListener('click',()=>{if(!playback.busy)beginAnimation();});
 document.querySelectorAll('[data-lang]').forEach(button=>button.addEventListener('click',()=>switchLanguage(button.dataset.lang)));
 $('menuButton').addEventListener('click',()=>{$('contents').showModal();});
@@ -133,6 +165,8 @@ function routeFromUrl() {
   lang=chooseLanguage({search:location.search,stored:lang,languages:navigator.languages});
   const candidate=history.state?.chapter===current().id?history.state.step:0;
   stepIndex=Number.isInteger(candidate)&&candidate>=0&&candidate<current().steps.length?candidate:0;
+  view=history.state?.chapter===current().id&&history.state.view==='scene'?'scene':'chapter';
+  departureTemplate=null;
   stopAnimation();updateUrl(false);render({animate:true});
 }
 window.addEventListener('popstate',routeFromUrl);window.addEventListener('hashchange',routeFromUrl);
@@ -140,7 +174,7 @@ document.addEventListener('visibilitychange',()=>{
   if(document.hidden&&playback.state==='running'){autoPaused=true;playback.pause();}
   else if(!document.hidden&&autoPaused){autoPaused=false;playback.resume();}
 });
-reducedMotion.addEventListener('change',()=>{stopAnimation();render();});
+reducedMotion.addEventListener('change',()=>{stopAnimation();departureTemplate=null;render();});
 smallViewport.addEventListener('change',()=>{
   const busy=playback.busy,paused=playback.paused,elapsed=playback.elapsed;
   if(busy)beginAnimation({elapsed,paused});else{stopAnimation();renderDiagram();renderPlaybackState();}

@@ -23,10 +23,15 @@
   </header>
   <main id="player">
     <h1 id="chapterMeta" class="sr-only"></h1>
+    <section id="chapterIntro" class="chapter-intro" aria-labelledby="chapterTitle" hidden>
+      <div id="chapterIntroInner" class="chapter-intro-inner">
+        <h2 id="chapterTitle" class="chapter-title" tabindex="-1" aria-live="polite"></h2>
+      </div>
+    </section>
     <div id="scene" class="scene-wrap" aria-describedby="explanation"></div>
-    <section class="narrative" aria-labelledby="stepTitle">
+    <section id="narrative" class="narrative" aria-labelledby="stepTitle">
       <h2 id="stepTitle" class="sr-only"></h2>
-      <p id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></p>
+      <p id="explanation" class="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></p>
       <div class="player-controls">
         <button id="replay" class="button icon-button" type="button" disabled></button>
         <button id="next" class="button continue" type="button" disabled></button>

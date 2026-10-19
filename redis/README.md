@@ -31,6 +31,7 @@ For a reproducible routing audit, serve the repository and open [`tests/routing-
 - `beats.js`: shared mapping between story stops and audited source states.
 - `choreography.js`: explicit request, mutation, reply and waiting sequences for every step.
 - `motion.js` and `playback.js`: finite Web Animations and their completion, background pause and cancellation handling.
+- `navigation.js` and `chapter-transition.js`: chapter title screens, scene navigation and the shared fade-through-white timeline.
 - `model.js`: deterministic states and reducers retained for internal verification; the player does not load this module.
 - `i18n.js`: interface translations and language/link selection.
 - `evidence.js` and `audit/`: a per-step map of official documentation and immutable implementation references, plus the original technical audit.
@@ -39,7 +40,9 @@ For a reproducible routing audit, serve the repository and open [`tests/routing-
 
 Changing language preserves the story step and animation progress. Explicit `?lang=ru|en` wins over the saved preference, then the first browser language is used (`ru` → Russian, otherwise English). Storage being unavailable does not prevent the player working. Chapters use stable hash identifiers.
 
-Each screen introduces one idea, with only the diagram, its caption, replay and **Continue** visible beneath the top bar. The chapter title remains available to screen readers and in the document title. Technical explanations and pinned sources are available through **About this step** in the chapter menu. Navigation and replay unlock only after every animation, including the controls reveal, has finished. Animation uses one fixed pace; language changes rebuild the same score at the current story time. Hidden tabs pause the story until they become visible again. Reduced motion shows the settled state immediately. Animation durations illustrate causality, not server latency.
+Each chapter opens on white with its title and Replay / **Continue**, following the original Raft chapter cards. The outgoing screen fades away, a white pause separates the topics, and the title and controls appear. Continue fades out the title before the first objects enter. Within a chapter, each screen introduces one idea, with only the diagram, its caption, replay and **Continue** visible beneath the top bar. The chapter title remains available to screen readers and in the document title. Technical explanations and pinned sources are available through **About this step** in the chapter menu once the story begins. Navigation and replay unlock only after every animation, including the controls reveal, has finished. Animation uses one fixed pace; language changes rebuild the same score at the current story time. Hidden tabs pause the story until they become visible again. Reduced motion shows the settled state immediately. Animation durations illustrate causality, not server latency.
+
+Title cards are separate navigation stops; they do not add Redis mechanisms or change the audited scene numbers. Direct chapter links and the menu open the title. Left arrow from a chapter’s first scene returns to its title, then to the previous chapter’s final scene. The browser Back/Forward history retains the title/scene view. The reproducible [`tests/chapter-browser.html`](tests/chapter-browser.html) checks chapter boundaries, title exit ordering, controls and browser history in both languages and layouts.
 
 Narrow screens use native compact diagrams rather than shrinking desktop labels. Left and right arrow keys revisit or advance a step once the scene is ready. See [verification evidence](QA.md) and the [Raft visual reference](design/README.md).
 

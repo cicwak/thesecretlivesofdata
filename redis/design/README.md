@@ -6,7 +6,7 @@ The reference is the original [Raft visualization](../../raft/) and its keyed, c
 
 - White canvas, a narrow pale-gray navbar, RU/EN and the chapter menu.
 - Helvetica/Arial captions and controls; Courier New diagram labels. Steelblue servers, green clients, black outlines and restrained colored messages.
-- No visible chapter counter, step count, speed selector, playback toolbar, secondary diagram caption or experiment controls. Chapter names remain in the document title, menu and screen-reader heading. Sources are available through About this step in the menu.
+- No visible chapter counter, step count, speed selector, playback toolbar, secondary diagram caption or experiment controls. Each chapter begins with its name on a separate white title screen, as in the original Raft. During the diagrams, chapter names remain in the document title, menu and screen-reader heading. Sources are available through About this step in the menu.
 - Replay and Continue appear after the finite animation completes. Keyboard arrows revisit or advance ready scenes. Reduced motion shows the final composition immediately.
 
 ## Motion
