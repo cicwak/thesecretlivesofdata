@@ -1,5 +1,6 @@
 :root { color-scheme: light; --ink:#333; --muted:#777; --line:#ddd; --blue:#4682b4; --green:green; font-family:"Helvetica Neue",Helvetica,Arial,sans-serif; color:var(--ink); background:#fff; }
 * { box-sizing:border-box; }
+[hidden] { display:none!important; }
 body { margin:0; }
 button { font:inherit; }
 button,a { -webkit-tap-highlight-color:transparent; }
@@ -14,12 +15,17 @@ button:focus-visible,a:focus-visible,[tabindex]:focus-visible { outline:3px soli
 .languages button[aria-pressed="true"] { color:#222; font-weight:700; }
 .menu-button { display:grid; place-items:center; width:42px; height:33px; border:1px solid #ddd; border-radius:4px; background:transparent; color:#888; }
 .menu-button:hover { background:#eee; }
-#player { min-height:calc(100svh - 50px); display:flex; flex-direction:column; align-items:center; }
+#player { position:relative; }
+#player,.chapter-departure { min-height:calc(100svh - 50px); display:flex; flex-direction:column; align-items:center; }
+.chapter-intro { position:relative; flex:1; width:100%; min-height:calc(100svh - 50px); }
+.chapter-intro-inner { position:absolute; top:calc(40% - 52px); left:0; right:0; transform:translateY(-50%); padding:20px; text-align:center; }
+.chapter-title { margin:0 auto 20px; max-width:900px; font-size:30px; line-height:1.2; font-weight:500; text-wrap:balance; }
+.chapter-departure { position:absolute; inset:0; z-index:2; background:#fff; pointer-events:none; }
 .scene-wrap { width:min(1040px,94vw); flex:1; min-height:325px; display:flex; align-items:center; justify-content:center; padding:35px 0; }
 .scene-wrap svg { width:100%; height:auto; overflow:visible; display:block; }
 .scene-wrap .mobile-description { display:none; }
 .narrative { width:min(1100px,94%); text-align:center; padding:14px 12px 30px; }
-#explanation { font-size:clamp(23px,2.2vw,30px); line-height:1.15; font-weight:500; margin:0 auto 16px; max-width:1100px; text-wrap:pretty; }
+.explanation { font-size:clamp(23px,2.2vw,30px); line-height:1.15; font-weight:500; margin:0 auto 16px; max-width:1100px; text-wrap:pretty; }
 .player-controls { display:inline-flex; align-items:center; justify-content:center; min-height:34px; }
 .player-controls .button { border-radius:0; min-height:34px; padding:6px 12px; }
 .player-controls .button:disabled { opacity:1; }
@@ -67,7 +73,8 @@ pre { font-size:14px; line-height:1.7; white-space:pre-wrap; overflow-wrap:anywh
   .nav-tools { gap:14px; }
   .scene-wrap { min-height:280px; padding:20px 0; width:96vw; }
   .scene-wrap svg { height:auto; min-height:200px; }
-  #explanation { font-size:21px; line-height:1.4; margin-bottom:18px; }
+  .explanation { font-size:21px; line-height:1.4; margin-bottom:18px; }
+  .chapter-title { font-size:27px; }
   .narrative { width:100%; padding:0 20px 24px; }
   .contents-meta { flex-wrap:wrap; gap:0 16px; }
   dialog { padding:20px; max-height:90svh; }
