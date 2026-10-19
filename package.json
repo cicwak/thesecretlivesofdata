@@ -17,6 +17,7 @@
   },
   "scripts": {
     "test": "make test",
-    "test:redis": "node --test redis/tests/*.test.mjs"
+    "test:redis": "node --test redis/tests/*.test.mjs",
+    "test:postgres": "node --test postgres/tests/*.test.mjs"
   }
 }

@@ -24,4 +24,6 @@ Please report any bugs you find or any suggestions you have for how to make thes
 
 3. [Redis Internals / Redis изнутри](redis/) — 21 interactive chapters in English and Russian, with deterministic experiments. See [run and test instructions](redis/README.md).
 
+4. [Postgres](postgres/?lang=ru#first-order) — 70 chapters and 400 illustrated stops in Russian and English, from an application saving an order to storage, MVCC, queries, indexes and replication. See [run and verification instructions](postgres/README.md).
+
 If you have suggestions for new topics, please submit a new Github issue.

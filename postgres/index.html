@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="From an application saving an order to the internals of Postgres: 70 illustrated chapters in Russian and English.">
+  <title>Postgres · The Secret Lives of Data</title>
+  <link rel="stylesheet" href="postgres.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#explanation" id="skip">Skip to the explanation</a>
+  <header class="navbar">
+    <a class="brand" href="../">← Визуализации</a>
+    <div class="nav-tools">
+      <div class="languages" role="group" aria-label="Language">
+        <button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button>
+      </div>
+      <button type="button" id="menuButton" class="menu-button" aria-label="Contents" aria-haspopup="dialog">
+        <svg width="20" height="17" viewBox="0 0 20 17" aria-hidden="true"><path d="M1 2h18M1 8h18M1 14h18" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>
+      </button>
+    </div>
+  </header>
+  <main id="player">
+    <h1 id="chapterMeta" class="sr-only"></h1>
+    <div id="scene" class="scene-wrap" aria-describedby="explanation"></div>
+    <section class="narrative" aria-labelledby="stepTitle">
+      <h2 id="stepTitle" class="sr-only"></h2>
+      <h2 id="transitionTitle" hidden></h2>
+      <p id="explanation" tabindex="-1" aria-live="polite" aria-atomic="true"></p>
+      <div class="player-controls">
+        <button id="replay" class="button icon-button" type="button" disabled></button>
+        <button id="next" class="button continue" type="button" disabled></button>
+      </div>
+    </section>
+  </main>
+  <dialog id="contents" class="contents-dialog" aria-labelledby="contentsTitle">
+    <div class="dialog-head"><h2 id="contentsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="contents" type="button"></button></div></div>
+    <div class="contents-meta"><p id="chapterCount" class="muted"></p><button id="about" class="text-button" type="button" aria-haspopup="dialog"></button></div><nav id="chapterLinks"></nav>
+  </dialog>
+  <dialog id="details" aria-labelledby="detailsTitle">
+    <div class="dialog-head"><h2 id="detailsTitle"></h2><div class="dialog-tools"><div class="languages" role="group"><button type="button" data-lang="ru" lang="ru">RU</button><span aria-hidden="true">/</span><button type="button" data-lang="en" lang="en">EN</button></div><button class="button close-dialog" data-close="details" type="button"></button></div></div>
+    <div id="detailsBody"></div>
+  </dialog>
+  <noscript><p class="noscript">Для интерактивного рассказа включите JavaScript. / Enable JavaScript to use the interactive explanation.</p></noscript>
+</body>
+</html>
